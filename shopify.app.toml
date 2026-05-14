@@ -1,0 +1,24 @@
+client_id = "fd406591b1a0aacd324bf6b01c0b9a53"
+name = "Dashboard Analytics"
+application_url = "https://watch-unburned-unplanted.ngrok-free.dev"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "meprotech-dev.myshopify.com"
+
+[auth]
+redirect_urls = [
+  "https://watch-unburned-unplanted.ngrok-free.dev/auth/callback"
+]
+
+[access_scopes]
+scopes = "read_orders,read_products,write_products"
+use_legacy_install_flow = false
+
+[webhooks]
+api_version = "2024-10"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://watch-unburned-unplanted.ngrok-free.dev/webhooks"

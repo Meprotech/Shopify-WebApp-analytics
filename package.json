@@ -1,0 +1,41 @@
+{
+  "name": "shopify-analytics-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx shopify app dev --tunnel-url=https://watch-unburned-unplanted.ngrok-free.dev:443",
+    "dev:remix": "remix vite:dev --host 0.0.0.0",
+    "build": "remix vite:build",
+    "start": "remix-serve ./build/server/index.js",
+    "backfill": "npx tsx --env-file=.env app/lib/backfill.server.ts",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@remix-run/node": "2.17.4",
+    "@remix-run/react": "2.17.4",
+    "@remix-run/serve": "2.17.4",
+    "@shopify/app-bridge-react": "^4.2.10",
+    "@shopify/polaris": "12.27.0",
+    "@shopify/shopify-app-remix": "4.2.0",
+    "@shopify/shopify-app-session-storage-sqlite": "^6.0.0",
+    "@supabase/supabase-js": "2.105.4",
+    "better-sqlite3": "^12.10.0",
+    "isbot": "5.1.40",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "2.17.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "25.7.0",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.3",
+    "vercel": "53.4.0",
+    "vite": "6.4.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

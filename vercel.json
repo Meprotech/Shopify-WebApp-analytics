@@ -1,0 +1,19 @@
+{
+  "framework": "remix",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build/client",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ],
+  "functions": {
+    "app/routes/**/*.ts": {
+      "maxDuration": 30
+    },
+    "app/routes/**/*.tsx": {
+      "maxDuration": 30
+    }
+  }
+}
