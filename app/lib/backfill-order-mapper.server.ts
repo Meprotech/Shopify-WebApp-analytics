@@ -8,7 +8,7 @@ interface MoneySet {
 
 export interface BackfillOrderNode {
   id: string;
-  orderNumber: number;
+  name: string;
   totalPriceSet: MoneySet;
   subtotalPriceSet: MoneySet;
   email: string | null;
@@ -58,7 +58,7 @@ export const ORDERS_BACKFILL_QUERY = `#graphql
       }
       nodes {
         id
-        orderNumber
+        name
         totalPriceSet { shopMoney { amount } }
         subtotalPriceSet { shopMoney { amount } }
         email
@@ -98,6 +98,12 @@ export function customerName(order: BackfillOrderNode): string | null {
   ].filter((part) => part.trim().length > 0);
 
   return parts.length > 0 ? parts.join(" ") : null;
+}
+
+export function orderNumber(order: BackfillOrderNode): number | null {
+  const digits = order.name.replace(/\D/g, "");
+  const parsed = Number.parseInt(digits, 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function orderItems(order: BackfillOrderNode): Json {

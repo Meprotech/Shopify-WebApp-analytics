@@ -2,6 +2,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 
 import {
   customerName,
+  orderNumber,
   orderItems,
   ORDERS_BACKFILL_QUERY,
   toNumber,
@@ -64,7 +65,7 @@ export async function runBackfill(
       const { error } = await supabase.from("store_orders").upsert(
         {
           order_id: order.id,
-          order_number: order.orderNumber,
+          order_number: orderNumber(order),
           total_price: toNumber(order.totalPriceSet.shopMoney.amount),
           subtotal_price: toNumber(order.subtotalPriceSet.shopMoney.amount),
           customer_email: order.email,
