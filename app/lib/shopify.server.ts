@@ -69,7 +69,7 @@ export const shopify = shopifyApp({
   },
   isEmbeddedApp: true,
   sessionStorage: new SQLiteSessionStorage(sessionDb),
-  scopes: ["read_orders", "read_all_orders", "read_products", "write_products", "read_customers"],
+  scopes: ["read_orders", "read_products", "write_products", "read_customers"],
 });
 
 export const authenticate = shopify.authenticate;
