@@ -34,15 +34,24 @@ export interface DashboardKpis {
   topProducts: { title: string; revenue: number }[];
 }
 
-async function loadOrders(): Promise<OrderRow[]> {
+async function loadOrders(startDate?: string, endDate?: string): Promise<OrderRow[]> {
   if (!isSupabaseConfigured) {
     return [];
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("store_orders")
     .select("*")
     .order("created_at", { ascending: true });
+
+  if (startDate) {
+    query = query.gte("created_at", startDate);
+  }
+  if (endDate) {
+    query = query.lte("created_at", endDate);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Failed to load store_orders analytics data", error);
@@ -71,12 +80,12 @@ async function loadCostMap(): Promise<Map<string, number>> {
   );
 }
 
-export async function getCustomerLifetimeValue(): Promise<
+export async function getCustomerLifetimeValue(startDate?: string, endDate?: string): Promise<
   CustomerLifetimeValue[]
 > {
   const customers = new Map<string, CustomerLifetimeValue>();
 
-  (await loadOrders()).forEach((order) => {
+  (await loadOrders(startDate, endDate)).forEach((order) => {
     if (!order.customer_email) {
       return;
     }
@@ -98,12 +107,12 @@ export async function getCustomerLifetimeValue(): Promise<
     .slice(0, 20);
 }
 
-export async function getMarketBasketCorrelations(): Promise<
+export async function getMarketBasketCorrelations(startDate?: string, endDate?: string): Promise<
   BasketCorrelation[]
 > {
   const pairCounts = new Map<string, BasketCorrelation>();
 
-  (await loadOrders()).forEach((order) => {
+  (await loadOrders(startDate, endDate)).forEach((order) => {
     const titles = Array.from(
       new Set(parseLineItems(order.items_json).map((item) => item.title)),
     ).sort((left, right) => left.localeCompare(right));
@@ -129,9 +138,9 @@ export async function getMarketBasketCorrelations(): Promise<
     .slice(0, 10);
 }
 
-export async function getNetProfitByMonth(): Promise<MonthlyProfit[]> {
+export async function getNetProfitByMonth(startDate?: string, endDate?: string): Promise<MonthlyProfit[]> {
   const [orders, costsByProductId] = await Promise.all([
-    loadOrders(),
+    loadOrders(startDate, endDate),
     loadCostMap(),
   ]);
   const months = new Map<string, MonthlyProfit>();
@@ -149,9 +158,9 @@ export async function getNetProfitByMonth(): Promise<MonthlyProfit[]> {
   );
 }
 
-export async function getDashboardKPIs(): Promise<DashboardKpis> {
+export async function getDashboardKPIs(startDate?: string, endDate?: string): Promise<DashboardKpis> {
   const [orders, costsByProductId] = await Promise.all([
-    loadOrders(),
+    loadOrders(startDate, endDate),
     loadCostMap(),
   ]);
   const totalRevenue = orders.reduce(

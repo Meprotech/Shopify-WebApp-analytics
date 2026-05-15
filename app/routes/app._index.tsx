@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useNavigation } from "@remix-run/react";
+import { useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
 import { Link } from "@remix-run/react";
 import {
   BlockStack,
@@ -9,7 +9,11 @@ import {
   List,
   Page,
   Spinner,
+  DatePicker,
+  Popover,
+  TextField,
 } from "@shopify/polaris";
+import { useState, useCallback } from "react";
 
 import { DashboardCards } from "../components/DashboardCards";
 import { ProfitChart } from "../components/ProfitChart";
@@ -24,10 +28,14 @@ import { authenticate } from "../lib/shopify.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
 
+  const url = new URL(request.url);
+  const startDate = url.searchParams.get("startDate");
+  const endDate = url.searchParams.get("endDate");
+
   const [kpis, customers, monthlyProfit] = await Promise.all([
-    getDashboardKPIs(),
-    getCustomerLifetimeValue(),
-    getNetProfitByMonth(),
+    getDashboardKPIs(startDate || undefined, endDate || undefined),
+    getCustomerLifetimeValue(startDate || undefined, endDate || undefined),
+    getNetProfitByMonth(startDate || undefined, endDate || undefined),
   ]);
 
   return json({
@@ -51,14 +59,87 @@ export default function Dashboard() {
   const { kpis, customers, monthlyProfit } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isLoading = navigation.state !== "idle";
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [popoverActive, setPopoverActive] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    searchParams.get("startDate") ? new Date(searchParams.get("startDate")!) : undefined
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined
+  );
+
+  const togglePopoverActive = useCallback(() => setPopoverActive((active) => !active), []);
+
+  const handleDateChange = useCallback((start: Date, end: Date) => {
+    setStartDate(start);
+    setEndDate(end);
+  }, []);
+
+  const applyFilter = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    if (startDate) {
+      params.set("startDate", startDate.toISOString().split('T')[0]);
+    } else {
+      params.delete("startDate");
+    }
+    if (endDate) {
+      params.set("endDate", endDate.toISOString().split('T')[0]);
+    } else {
+      params.delete("endDate");
+    }
+    setSearchParams(params);
+    setPopoverActive(false);
+  }, [startDate, endDate, searchParams, setSearchParams]);
+
+  const clearFilter = useCallback(() => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    const params = new URLSearchParams(searchParams);
+    params.delete("startDate");
+    params.delete("endDate");
+    setSearchParams(params);
+    setPopoverActive(false);
+  }, [searchParams, setSearchParams]);
 
   return (
     <Page
       title="Analytics Dashboard"
       primaryAction={
-        <Link to="/app/backfill">
-          <Button variant="primary">Import Historical Orders</Button>
-        </Link>
+        <Popover
+          active={popoverActive}
+          activator={
+            <Button onClick={togglePopoverActive} variant="primary">
+              {startDate || endDate ? "Edit Date Filter" : "Filter by Date"}
+            </Button>
+          }
+          onClose={togglePopoverActive}
+        >
+          <div style={{ padding: "16px", minWidth: "300px" }}>
+            <BlockStack gap="400">
+              <TextField
+                label="Start Date"
+                type="date"
+                value={startDate ? startDate.toISOString().split('T')[0] : ""}
+                onChange={(value) => setStartDate(value ? new Date(value) : undefined)}
+              />
+              <TextField
+                label="End Date"
+                type="date"
+                value={endDate ? endDate.toISOString().split('T')[0] : ""}
+                onChange={(value) => setEndDate(value ? new Date(value) : undefined)}
+              />
+              <BlockStack gap="200">
+                <Button onClick={applyFilter} variant="primary" fullWidth>
+                  Apply Filter
+                </Button>
+                <Button onClick={clearFilter} fullWidth>
+                  Clear Filter
+                </Button>
+              </BlockStack>
+            </BlockStack>
+          </div>
+        </Popover>
       }
     >
       <BlockStack gap="400">
@@ -83,16 +164,9 @@ export default function Dashboard() {
             <LegacyCard title="Top Customers by CLV" sectioned>
               {customers.length === 0 ? (
                 <LegacyCard.Section>
-                  <BlockStack gap="200">
-                    <p style={{ color: "#6d7175" }}>
-                      No customer data yet. Click{" "}
-                      <strong>Import Historical Orders</strong> to load your
-                      data.
-                    </p>
-                    <Link to="/app/backfill">
-                      <Button size="slim">Go to Backfill</Button>
-                    </Link>
-                  </BlockStack>
+                  <p style={{ color: "#6d7175" }}>
+                    No customer data available for the selected date range.
+                  </p>
                 </LegacyCard.Section>
               ) : (
                 <List type="bullet">
@@ -114,21 +188,6 @@ export default function Dashboard() {
             />
           </Layout.Section>
         </Layout>
-
-        {/* Quick Links Footer */}
-        <LegacyCard title="Quick Links" sectioned>
-          <BlockStack gap="200">
-            <Link to="/app/backfill">
-              <Button fullWidth>Import Historical Orders (Backfill)</Button>
-            </Link>
-            <Link to="/app/orders">
-              <Button fullWidth>View All Orders</Button>
-            </Link>
-            <Link to="/app/products">
-              <Button fullWidth>Manage Product Costs</Button>
-            </Link>
-          </BlockStack>
-        </LegacyCard>
       </BlockStack>
     </Page>
   );
