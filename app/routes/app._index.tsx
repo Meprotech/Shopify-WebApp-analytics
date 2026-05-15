@@ -9,7 +9,7 @@ import {
   List,
   Page,
   Spinner,
-  DatePicker,
+  ActionList,
   Popover,
   TextField,
 } from "@shopify/polaris";
@@ -68,13 +68,49 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState<Date | undefined>(
     searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined
   );
+  const [activeDateRange, setActiveDateRange] = useState<string>("options");
 
-  const togglePopoverActive = useCallback(() => setPopoverActive((active) => !active), []);
+  const togglePopoverActive = useCallback(() => {
+    setPopoverActive((active) => !active);
+    if (!popoverActive) setActiveDateRange("options");
+  }, [popoverActive]);
 
-  const handleDateChange = useCallback((start: Date, end: Date) => {
+  const handleRangeSelect = useCallback((range: string) => {
+    if (range === "custom") {
+      setActiveDateRange("custom");
+      return;
+    }
+
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (range === "today") {
+      start = today;
+    } else if (range === "yesterday") {
+      start = new Date(today);
+      start.setDate(today.getDate() - 1);
+      end = new Date(today);
+      end.setDate(today.getDate() - 1);
+    } else if (range === "last7") {
+      start = new Date(today);
+      start.setDate(today.getDate() - 6);
+    } else if (range === "last30") {
+      start = new Date(today);
+      start.setDate(today.getDate() - 29);
+    } else if (range === "thisMonth") {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+
     setStartDate(start);
     setEndDate(end);
-  }, []);
+    
+    const params = new URLSearchParams(searchParams);
+    params.set("startDate", start.toISOString().split('T')[0]);
+    params.set("endDate", end.toISOString().split('T')[0]);
+    setSearchParams(params);
+    setPopoverActive(false);
+  }, [searchParams, setSearchParams]);
 
   const applyFilter = useCallback(() => {
     const params = new URLSearchParams(searchParams);
@@ -115,29 +151,50 @@ export default function Dashboard() {
           }
           onClose={togglePopoverActive}
         >
-          <div style={{ padding: "16px", minWidth: "300px" }}>
-            <BlockStack gap="400">
-              <TextField
-                label="Start Date"
-                type="date"
-                value={startDate ? startDate.toISOString().split('T')[0] : ""}
-                onChange={(value) => setStartDate(value ? new Date(value) : undefined)}
+          <div style={{ minWidth: "250px" }}>
+            {activeDateRange === "options" ? (
+              <ActionList
+                actionRole="menuitem"
+                items={[
+                  { content: 'Custom', onAction: () => handleRangeSelect('custom') },
+                  { content: 'Today', onAction: () => handleRangeSelect('today') },
+                  { content: 'Yesterday', onAction: () => handleRangeSelect('yesterday') },
+                  { content: 'Last 7 days', onAction: () => handleRangeSelect('last7') },
+                  { content: 'Last 30 days', onAction: () => handleRangeSelect('last30') },
+                  { content: 'This month', onAction: () => handleRangeSelect('thisMonth') },
+                ]}
               />
-              <TextField
-                label="End Date"
-                type="date"
-                value={endDate ? endDate.toISOString().split('T')[0] : ""}
-                onChange={(value) => setEndDate(value ? new Date(value) : undefined)}
-              />
-              <BlockStack gap="200">
-                <Button onClick={applyFilter} variant="primary" fullWidth>
-                  Apply Filter
-                </Button>
-                <Button onClick={clearFilter} fullWidth>
-                  Clear Filter
-                </Button>
-              </BlockStack>
-            </BlockStack>
+            ) : (
+              <div style={{ padding: "16px" }}>
+                <BlockStack gap="400">
+                  <TextField
+                    label="Start Date"
+                    type="date"
+                    autoComplete="off"
+                    value={startDate ? startDate.toISOString().split('T')[0] : ""}
+                    onChange={(value) => setStartDate(value ? new Date(value) : undefined)}
+                  />
+                  <TextField
+                    label="End Date"
+                    type="date"
+                    autoComplete="off"
+                    value={endDate ? endDate.toISOString().split('T')[0] : ""}
+                    onChange={(value) => setEndDate(value ? new Date(value) : undefined)}
+                  />
+                  <BlockStack gap="200">
+                    <Button onClick={applyFilter} variant="primary" fullWidth>
+                      Apply Filter
+                    </Button>
+                    <Button onClick={() => setActiveDateRange("options")} fullWidth>
+                      Back to Presets
+                    </Button>
+                    <Button onClick={clearFilter} fullWidth>
+                      Clear Filter
+                    </Button>
+                  </BlockStack>
+                </BlockStack>
+              </div>
+            )}
           </div>
         </Popover>
       }
