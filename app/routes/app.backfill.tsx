@@ -21,6 +21,9 @@ export async function action({ request }: ActionFunctionArgs) {
     const result = await runBackfill(admin);
     return json({ success: true, result });
   } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
     return json({ success: false, error: String(error) });
   }
 }
