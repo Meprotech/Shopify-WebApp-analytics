@@ -73,8 +73,6 @@ export default function App() {
         <AppProvider isEmbeddedApp apiKey={apiKey}>
           <NavMenu>
             <a href="/app" rel="home">Dashboard</a>
-            <a href="/app/orders">Orders</a>
-            <a href="/app/products">Product Costs</a>
             <a href="/app/backfill">Import Orders</a>
           </NavMenu>
           <GlobalLoading />

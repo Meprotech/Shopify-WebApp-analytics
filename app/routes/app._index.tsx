@@ -162,6 +162,7 @@ export default function Dashboard() {
                   { content: 'Last 7 days', onAction: () => handleRangeSelect('last7') },
                   { content: 'Last 30 days', onAction: () => handleRangeSelect('last30') },
                   { content: 'This month', onAction: () => handleRangeSelect('thisMonth') },
+                  { content: 'Clear', onAction: clearFilter, destructive: true },
                 ]}
               />
             ) : (

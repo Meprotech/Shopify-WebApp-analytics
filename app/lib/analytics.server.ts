@@ -45,10 +45,10 @@ async function loadOrders(startDate?: string, endDate?: string): Promise<OrderRo
     .order("created_at", { ascending: true });
 
   if (startDate) {
-    query = query.gte("created_at", startDate);
+    query = query.gte("created_at", `${startDate}T00:00:00.000Z`);
   }
   if (endDate) {
-    query = query.lte("created_at", endDate);
+    query = query.lte("created_at", `${endDate}T23:59:59.999Z`);
   }
 
   const { data, error } = await query;
