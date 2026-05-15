@@ -17,6 +17,7 @@
     "@shopify/app-bridge-react": "^4.2.10",
     "@shopify/polaris": "12.27.0",
     "@shopify/shopify-app-remix": "4.2.0",
+    "@shopify/shopify-app-session-storage-postgresql": "^6.0.0",
     "@shopify/shopify-app-session-storage-sqlite": "^6.0.0",
     "@supabase/supabase-js": "2.105.4",
     "better-sqlite3": "^12.10.0",

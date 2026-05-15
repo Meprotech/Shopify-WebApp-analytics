@@ -4,7 +4,7 @@ import {
   shopifyApp,
   type AdminApiContext,
 } from "@shopify/shopify-app-remix/server";
-import { SQLiteSessionStorage } from "@shopify/shopify-app-session-storage-sqlite";
+import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 import path from "path";
 
 interface GraphqlError {
@@ -55,8 +55,6 @@ function getErrorStatus(error: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
-const sessionDb = path.join(process.cwd(), "sessions.sqlite");
-
 export const shopify = shopifyApp({
   apiKey: requireEnv("SHOPIFY_API_KEY"),
   apiSecretKey: requireEnv("SHOPIFY_API_SECRET"),
@@ -68,7 +66,7 @@ export const shopify = shopifyApp({
     unstable_newEmbeddedAuthStrategy: true,
   },
   isEmbeddedApp: true,
-  sessionStorage: new SQLiteSessionStorage(sessionDb),
+  sessionStorage: new PostgreSQLSessionStorage(requireEnv("DATABASE_URL")),
   scopes: ["read_orders", "read_products", "write_products", "read_customers"],
 });
 
