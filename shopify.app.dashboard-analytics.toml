@@ -1,6 +1,6 @@
 client_id = "fd406591b1a0aacd324bf6b01c0b9a53"
 name = "Dashboard Analytics"
-application_url = "https://watch-unburned-unplanted.ngrok-free.dev"
+application_url = "https://dashboard-analytics-mu.vercel.app"
 embedded = true
 
 [build]
@@ -9,7 +9,7 @@ dev_store_url = "meprotech-dev.myshopify.com"
 
 [auth]
 redirect_urls = [
-  "https://watch-unburned-unplanted.ngrok-free.dev/auth/callback"
+  "https://dashboard-analytics-mu.vercel.app/auth/callback"
 ]
 
 [access_scopes]
@@ -21,4 +21,4 @@ api_version = "2024-10"
 
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-uri = "https://watch-unburned-unplanted.ngrok-free.dev/webhooks"
+uri = "https://dashboard-analytics-mu.vercel.app/webhooks"
