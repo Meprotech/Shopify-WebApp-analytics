@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useNavigation, useSearchParams, useSubmit, useFetcher } from "@remix-run/react";
+import { useLoaderData, useNavigation, useSearchParams, useSubmit, useFetcher, useRevalidator } from "@remix-run/react";
 import { Link } from "@remix-run/react";
 import {
   BlockStack,
@@ -18,7 +18,7 @@ import {
   Text,
   useIndexResourceState,
 } from "@shopify/polaris";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 import customStyles from "../styles/custom.css?url";
 
@@ -125,6 +125,7 @@ export default function Dashboard() {
   const navigation = useNavigation();
   const submit = useSubmit();
   const syncFetcher = useFetcher();
+  const revalidator = useRevalidator();
   const [activePaymentPopover, setActivePaymentPopover] = useState<string | null>(null);
   const [activeFulfillmentPopover, setActiveFulfillmentPopover] = useState<string | null>(null);
 
@@ -145,6 +146,13 @@ export default function Dashboard() {
     setPopoverActive((active) => !active);
     if (!popoverActive) setActiveDateRange("options");
   }, [popoverActive]);
+
+  // Auto-refresh dashboard (left side orders/KPIs) after successful sync
+  useEffect(() => {
+    if (syncFetcher.state === "idle" && syncFetcher.data?.success) {
+      revalidator.revalidate();
+    }
+  }, [syncFetcher.state, syncFetcher.data, revalidator]);
 
   const handleRangeSelect = useCallback((range: string) => {
     if (range === "custom") {
