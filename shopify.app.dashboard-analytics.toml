@@ -1,3 +1,5 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
 client_id = "fd406591b1a0aacd324bf6b01c0b9a53"
 name = "Dashboard Analytics"
 application_url = "https://dashboard-analytics-mu.vercel.app"
@@ -7,18 +9,18 @@ embedded = true
 automatically_update_urls_on_dev = true
 dev_store_url = "meprotech-dev.myshopify.com"
 
-[auth]
-redirect_urls = [
-  "https://dashboard-analytics-mu.vercel.app/auth/callback"
-]
-
-[access_scopes]
-scopes = "read_orders,read_products,write_products,read_customers"
-use_legacy_install_flow = false
-
 [webhooks]
 api_version = "2024-10"
 
-[[webhooks.subscriptions]]
-compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-uri = "https://dashboard-analytics-mu.vercel.app/webhooks"
+  [[webhooks.subscriptions]]
+  uri = "/webhooks"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,read_orders,read_products,write_products"
+use_legacy_install_flow = false
+optional_scopes = [ ]
+
+[auth]
+redirect_urls = [ "https://dashboard-analytics-mu.vercel.app/auth/callback" ]
