@@ -22,3 +22,11 @@ api_version = "2024-10"
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
 uri = "https://dashboard-analytics-mu.vercel.app/webhooks"
+
+[[webhooks.subscriptions]]
+topics = ["orders/create"]
+uri = "https://dashboard-analytics-mu.vercel.app/webhooks/orders-create"
+
+[[webhooks.subscriptions]]
+topics = ["orders/updated"]
+uri = "https://dashboard-analytics-mu.vercel.app/webhooks/orders-updated"
