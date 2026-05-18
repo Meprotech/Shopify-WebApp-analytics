@@ -8,7 +8,8 @@
     "build": "remix vite:build",
     "start": "remix-serve ./build/server/index.js",
     "backfill": "npx tsx --env-file=.env app/lib/backfill.server.ts",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "push-deploy": "git push origin main && vercel --prod --yes"
   },
   "dependencies": {
     "@remix-run/node": "2.17.4",

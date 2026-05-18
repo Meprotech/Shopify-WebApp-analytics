@@ -231,34 +231,6 @@ export default function Dashboard() {
         />
 
         <Layout>
-          <Layout.Section variant="oneHalf">
-            <TopProductsCard
-              products={kpis.topProducts}
-              formatCurrency={formatCurrency}
-            />
-          </Layout.Section>
-
-          <Layout.Section variant="oneHalf">
-            <LegacyCard title="Top Customers by CLV" sectioned>
-              {customers.length === 0 ? (
-                <LegacyCard.Section>
-                  <p style={{ color: "#6d7175" }}>
-                    No customer data available for the selected date range.
-                  </p>
-                </LegacyCard.Section>
-              ) : (
-                <List type="bullet">
-                  {customers.map((customer) => (
-                    <List.Item key={customer.email}>
-                      {customer.name} ({customer.email}):{" "}
-                      {formatCurrency(customer.totalSpent)}
-                    </List.Item>
-                  ))}
-                </List>
-              )}
-            </LegacyCard>
-          </Layout.Section>
-
           <Layout.Section>
             <LegacyCard title="Order Status">
               <IndexTable
@@ -313,6 +285,34 @@ export default function Dashboard() {
                   </IndexTable.Row>
                 ))}
               </IndexTable>
+            </LegacyCard>
+          </Layout.Section>
+
+          <Layout.Section variant="oneHalf">
+            <TopProductsCard
+              products={kpis.topProducts}
+              formatCurrency={formatCurrency}
+            />
+          </Layout.Section>
+
+          <Layout.Section variant="oneHalf">
+            <LegacyCard title="Top Customers by CLV" sectioned>
+              {customers.length === 0 ? (
+                <LegacyCard.Section>
+                  <p style={{ color: "#6d7175" }}>
+                    No customer data available for the selected date range.
+                  </p>
+                </LegacyCard.Section>
+              ) : (
+                <List type="bullet">
+                  {customers.map((customer) => (
+                    <List.Item key={customer.email}>
+                      {customer.name} ({customer.email}):{" "}
+                      {formatCurrency(customer.totalSpent)}
+                    </List.Item>
+                  ))}
+                </List>
+              )}
             </LegacyCard>
           </Layout.Section>
         </Layout>
