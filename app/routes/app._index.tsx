@@ -16,6 +16,7 @@ import {
   Badge,
   Select,
   Text,
+  useIndexResourceState,
 } from "@shopify/polaris";
 import { useState, useCallback } from "react";
 
@@ -40,10 +41,17 @@ export async function action({ request }: ActionFunctionArgs) {
   await authenticate.admin(request);
   const formData = await request.formData();
   const id = formData.get("id") as string;
-  const fulfillment_status = formData.get("fulfillment_status") as string;
+  const fulfillment_status = formData.get("fulfillment_status") as string | null;
+  const financial_status = formData.get("financial_status") as string | null;
   
-  if (id && fulfillment_status) {
-    await updateOrderStatus(id, fulfillment_status);
+  if (id) {
+    const updates: any = {};
+    if (fulfillment_status) updates.fulfillment_status = fulfillment_status;
+    if (financial_status) updates.financial_status = financial_status;
+    
+    if (Object.keys(updates).length > 0) {
+      await updateOrderStatus(id, updates);
+    }
   }
   return json({ success: true });
 }
@@ -84,6 +92,10 @@ export default function Dashboard() {
   const { kpis, customers, orders } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
+  const [activePaymentPopover, setActivePaymentPopover] = useState<string | null>(null);
+  const [activeFulfillmentPopover, setActiveFulfillmentPopover] = useState<string | null>(null);
+
+  const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(orders);
   const isLoading = navigation.state !== "idle";
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -256,44 +268,67 @@ export default function Dashboard() {
                   { title: 'Delivery method' },
                   { title: 'Tags' },
                 ]}
-                selectable={false}
+                selectable={true}
+                selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
+                onSelectionChange={handleSelectionChange}
               >
                 {orders.map((order, index) => (
-                  <IndexTable.Row id={order.id} key={order.id} position={index}>
+                  <IndexTable.Row id={order.id} key={order.id} selected={selectedResources.includes(order.id)} position={index}>
                     <IndexTable.Cell>
                       <Text variant="bodyMd" fontWeight="bold" as="span">
                         #{order.order_number || order.order_id.split('/').pop()}
                       </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {new Intl.DateTimeFormat('en-US', { weekday: 'long', hour: 'numeric', minute: 'numeric' }).format(new Date(order.created_at))}
+                      {new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(order.created_at))} at {new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric' }).format(new Date(order.created_at)).toLowerCase()}
                     </IndexTable.Cell>
                     <IndexTable.Cell>{order.customer_name || 'No customer'}</IndexTable.Cell>
                     <IndexTable.Cell></IndexTable.Cell>
                     <IndexTable.Cell>{formatCurrency(order.total_price || 0)}</IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Badge progress={order.financial_status === 'paid' ? 'complete' : 'incomplete'}>
-                        {order.financial_status ? order.financial_status.charAt(0).toUpperCase() + order.financial_status.slice(1) : 'Unpaid'}
-                      </Badge>
+                      <Popover
+                        active={activePaymentPopover === order.id}
+                        activator={
+                          <div onClick={() => setActivePaymentPopover(activePaymentPopover === order.id ? null : order.id)} style={{ cursor: 'pointer', display: 'inline-block' }}>
+                            <Badge progress={order.financial_status === 'paid' ? 'complete' : 'partiallyComplete'}>
+                              {order.financial_status ? order.financial_status.charAt(0).toUpperCase() + order.financial_status.slice(1) : 'Unpaid'}
+                            </Badge>
+                          </div>
+                        }
+                        onClose={() => setActivePaymentPopover(null)}
+                      >
+                        <ActionList
+                          actionRole="menuitem"
+                          items={[
+                            { content: 'Pending', onAction: () => { submit({ id: order.id, financial_status: 'pending' }, { method: "post" }); setActivePaymentPopover(null); } },
+                            { content: 'Paid', onAction: () => { submit({ id: order.id, financial_status: 'paid' }, { method: "post" }); setActivePaymentPopover(null); } },
+                            { content: 'Refunded', onAction: () => { submit({ id: order.id, financial_status: 'refunded' }, { method: "post" }); setActivePaymentPopover(null); } },
+                          ]}
+                        />
+                      </Popover>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Select
-                        label="Fulfillment status"
-                        labelHidden
-                        options={[
-                          { label: 'Unfulfilled', value: 'unfulfilled' },
-                          { label: 'Fulfilled', value: 'fulfilled' },
-                          { label: 'Partially fulfilled', value: 'partial' },
-                          { label: 'Restocked', value: 'restocked' },
-                        ]}
-                        value={order.fulfillment_status || 'unfulfilled'}
-                        onChange={(value) => {
-                          submit(
-                            { id: order.id, fulfillment_status: value },
-                            { method: "post" }
-                          );
-                        }}
-                      />
+                      <Popover
+                        active={activeFulfillmentPopover === order.id}
+                        activator={
+                          <div onClick={() => setActiveFulfillmentPopover(activeFulfillmentPopover === order.id ? null : order.id)} style={{ cursor: 'pointer', display: 'inline-block' }}>
+                            <Badge tone={order.fulfillment_status === 'fulfilled' ? undefined : (order.fulfillment_status === 'partial' ? 'warning' : undefined)} progress={order.fulfillment_status === 'fulfilled' ? 'complete' : (order.fulfillment_status === 'partial' ? 'partiallyComplete' : 'incomplete')}>
+                              {order.fulfillment_status === 'partial' ? 'Partially fulfilled' : (order.fulfillment_status ? order.fulfillment_status.charAt(0).toUpperCase() + order.fulfillment_status.slice(1) : 'Unfulfilled')}
+                            </Badge>
+                          </div>
+                        }
+                        onClose={() => setActiveFulfillmentPopover(null)}
+                      >
+                        <ActionList
+                          actionRole="menuitem"
+                          items={[
+                            { content: 'Unfulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'unfulfilled' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                            { content: 'Fulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'fulfilled' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                            { content: 'Partially fulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'partial' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                            { content: 'Restocked', onAction: () => { submit({ id: order.id, fulfillment_status: 'restocked' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                          ]}
+                        />
+                      </Popover>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       {(() => {
@@ -302,13 +337,13 @@ export default function Dashboard() {
                       })()}
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {order.fulfillment_status === 'fulfilled' ? <Badge progress="complete">Delivered</Badge> : (order.fulfillment_status === 'partial' ? <Badge progress="partiallyComplete">Tracking added</Badge> : null)}
+                      {/* empty, using original data as requested */}
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       Shipping
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {order.fulfillment_status === 'fulfilled' ? <Badge>Ekart</Badge> : <Badge>Delhivery</Badge>}
+                      {/* empty, using original data as requested */}
                     </IndexTable.Cell>
                   </IndexTable.Row>
                 ))}

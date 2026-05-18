@@ -65,11 +65,11 @@ export async function getOrders(startDate?: string, endDate?: string): Promise<O
   return loadOrders(startDate, endDate);
 }
 
-export async function updateOrderStatus(id: string, fulfillment_status: string) {
+export async function updateOrderStatus(id: string, updates: { fulfillment_status?: string, financial_status?: string }) {
   if (!isSupabaseConfigured) return false;
   const { error } = await supabase
     .from("store_orders")
-    .update({ fulfillment_status })
+    .update(updates)
     .eq("id", id);
   if (error) {
     console.error("Failed to update order status", error);
