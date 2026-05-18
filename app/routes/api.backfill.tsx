@@ -34,9 +34,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
-    // Find all sessions for the shop
+    // Find all sessions for the shop. Prefer offline (long-lived) over online (24h).
     const sessions = await shopify.sessionStorage.findSessionsByShop(shop);
-    const session = sessions.find((s) => s.accessToken);
+    const session =
+      sessions.find((s) => s.accessToken && !s.isOnline) ??
+      sessions.find((s) => s.accessToken);
 
     if (!session?.accessToken) {
       return new Response(

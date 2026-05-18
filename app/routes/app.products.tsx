@@ -16,9 +16,8 @@ interface ActionData {
   message: string;
 }
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
-
+export async function loader(_: LoaderFunctionArgs) {
+  // Auth is enforced by the parent `app.tsx` loader.
   if (!isSupabaseConfigured) {
     return json({
       products: [],

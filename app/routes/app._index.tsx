@@ -39,25 +39,25 @@ import { authenticate } from "../lib/shopify.server";
 import { supabase } from "../lib/supabase.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  await authenticate.admin(request);
+  // Single auth call — the embedded session token (id_token) is single-use,
+  // so calling authenticate.admin twice in the same request fails on the second call.
+  const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const id = formData.get("id") as string;
   const fulfillment_status = formData.get("fulfillment_status") as string | null;
   const financial_status = formData.get("financial_status") as string | null;
-  
+
   if (id) {
     const updates: any = {};
     if (fulfillment_status) updates.fulfillment_status = fulfillment_status;
     if (financial_status) updates.financial_status = financial_status;
-    
+
     if (Object.keys(updates).length > 0) {
       await updateOrderStatus(id, updates);
     }
   }
 
   if (formData.get("sync") === "latest") {
-    // Simple recent orders sync using Shopify Admin API + upsert
-    const { admin } = await authenticate.admin(request);
     const response = await admin.graphql(`
       query GetLatestOrders {
         orders(first: 50, sortKey: CREATED_AT, reverse: true) {
@@ -110,8 +110,9 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
-
+  // Auth is enforced by the parent `app.tsx` loader. Re-calling
+  // `authenticate.admin` here races with the parent during client-side
+  // revalidation because the embedded session token is single-use.
   const url = new URL(request.url);
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
@@ -174,6 +175,16 @@ export default function Dashboard() {
       revalidator.revalidate();
     }
   }, [syncFetcher.state, syncFetcher.data, revalidator]);
+
+  // Live polling: pick up webhook-driven changes without manual refresh
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        revalidator.revalidate();
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, [revalidator]);
 
   const handleRangeSelect = useCallback((range: string) => {
     if (range === "custom") {

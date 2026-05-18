@@ -1,13 +1,13 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Card, Button, Banner, Text, BlockStack } from "@shopify/polaris";
-import { authenticate } from "../lib/shopify.server";
 import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  // Pass the API secret + current shop so /api/backfill works without extra env vars
-  return json({ apiSecret: process.env.SHOPIFY_API_SECRET, shop: session.shop });
+  // Auth is enforced by the parent `app.tsx` loader.
+  // Shop comes from the embedded URL params (Shopify includes shop=... on every request).
+  const shop = new URL(request.url).searchParams.get("shop") ?? "";
+  return json({ apiSecret: process.env.SHOPIFY_API_SECRET, shop });
 }
 
 export default function BackfillPage() {

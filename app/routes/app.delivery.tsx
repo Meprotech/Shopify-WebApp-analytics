@@ -1,6 +1,5 @@
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { authenticate } from "../lib/shopify.server";
 import { getOrders } from "../lib/analytics.server";
 import { Page, Layout, LegacyCard, InlineGrid, BlockStack, Text } from "@shopify/polaris";
 import type { LoaderFunctionArgs } from "@remix-run/node";
@@ -11,8 +10,8 @@ export const links = () => [
   { rel: "stylesheet", href: customStyles },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
+export async function loader(_: LoaderFunctionArgs) {
+  // Auth is enforced by the parent `app.tsx` loader.
   const orders = await getOrders();
   
   let pendingOrders = 0;

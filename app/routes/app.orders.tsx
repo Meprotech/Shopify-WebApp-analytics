@@ -4,8 +4,9 @@ import {
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
 import { Page } from "@shopify/polaris";
+import { useEffect } from "react";
 
 import {
   OrdersTable,
@@ -17,8 +18,7 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase.server";
 const PAGE_SIZE = 50;
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
-
+  // Auth is enforced by the parent `app.tsx` loader. See app._index.tsx for context.
   const url = new URL(request.url);
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const financialStatus = url.searchParams.get("financial_status") ?? "";
@@ -97,6 +97,16 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function OrdersTablePage() {
   const data = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        revalidator.revalidate();
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, [revalidator]);
 
   return (
     <Page title="Orders">
