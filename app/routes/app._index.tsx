@@ -19,6 +19,12 @@ import {
 } from "@shopify/polaris";
 import { useState, useCallback } from "react";
 
+import customStyles from "../styles/custom.css?url";
+
+export const links = () => [
+  { rel: "stylesheet", href: customStyles },
+];
+
 import { DashboardCards } from "../components/DashboardCards";
 import { TopProductsCard } from "../components/TopProductsCard";
 import {
@@ -232,8 +238,9 @@ export default function Dashboard() {
 
         <Layout>
           <Layout.Section>
-            <LegacyCard title="Order Status">
-              <IndexTable
+            <div className="modern-card table-wrapper">
+              <LegacyCard title="Order Status">
+                <IndexTable
                 resourceName={{ singular: 'order', plural: 'orders' }}
                 itemCount={orders.length}
                 headings={[
@@ -286,6 +293,7 @@ export default function Dashboard() {
                 ))}
               </IndexTable>
             </LegacyCard>
+            </div>
           </Layout.Section>
 
           <Layout.Section variant="oneHalf">
@@ -296,24 +304,47 @@ export default function Dashboard() {
           </Layout.Section>
 
           <Layout.Section variant="oneHalf">
-            <LegacyCard title="Top Customers by CLV" sectioned>
-              {customers.length === 0 ? (
-                <LegacyCard.Section>
-                  <p style={{ color: "#6d7175" }}>
-                    No customer data available for the selected date range.
-                  </p>
-                </LegacyCard.Section>
-              ) : (
-                <List type="bullet">
-                  {customers.map((customer) => (
-                    <List.Item key={customer.email}>
-                      {customer.name} ({customer.email}):{" "}
-                      {formatCurrency(customer.totalSpent)}
-                    </List.Item>
-                  ))}
-                </List>
-              )}
-            </LegacyCard>
+            <div className="modern-card">
+              <LegacyCard title="Top Customers by CLV" sectioned>
+                {customers.length === 0 ? (
+                  <LegacyCard.Section>
+                    <p style={{ color: "#6d7175" }}>
+                      No customer data available for the selected date range.
+                    </p>
+                  </LegacyCard.Section>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {customers.map((customer, index) => (
+                      <div key={customer.email} className="list-item-modern">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ 
+                            background: '#e3f1df', 
+                            borderRadius: '50%', 
+                            width: '32px', 
+                            height: '32px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: '14px',
+                            color: '#008060'
+                          }}>
+                            {customer.name.charAt(0).toUpperCase()}
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 500, color: '#202223' }}>{customer.name}</span>
+                            <span style={{ fontSize: '12px', color: '#6d7175' }}>{customer.email}</span>
+                          </div>
+                        </div>
+                        <span style={{ fontWeight: 600, color: '#202223' }}>
+                          {formatCurrency(customer.totalSpent)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </LegacyCard>
+            </div>
           </Layout.Section>
         </Layout>
       </BlockStack>

@@ -14,16 +14,20 @@ interface KpiCardProps {
 
 function KpiCard({ label, value }: KpiCardProps) {
   return (
-    <LegacyCard sectioned>
-      <BlockStack gap="200">
-        <Text as="p" tone="subdued">
-          {label}
-        </Text>
-        <Text as="p" variant="heading2xl">
-          {value}
-        </Text>
-      </BlockStack>
-    </LegacyCard>
+    <div className="modern-card">
+      <LegacyCard sectioned>
+        <BlockStack gap="200">
+          <Text as="p" tone="subdued" fontWeight="medium">
+            {label}
+          </Text>
+          <div className="kpi-value">
+            <Text as="p" variant="heading3xl">
+              {value}
+            </Text>
+          </div>
+        </BlockStack>
+      </LegacyCard>
+    </div>
   );
 }
 

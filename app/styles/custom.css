@@ -1,0 +1,36 @@
+.modern-card {
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border-radius: 12px;
+  height: 100%;
+}
+
+.modern-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.kpi-value {
+  background: linear-gradient(135deg, #008060 0%, #20B2AA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  display: inline-block;
+}
+
+.table-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.list-item-modern {
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f2f4;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.list-item-modern:last-child {
+  border-bottom: none;
+}
