@@ -268,12 +268,10 @@ export default function Dashboard() {
                   { title: 'Delivery method' },
                   { title: 'Tags' },
                 ]}
-                selectable={true}
-                selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
-                onSelectionChange={handleSelectionChange}
+                selectable={false}
               >
                 {orders.map((order, index) => (
-                  <IndexTable.Row id={order.id} key={order.id} selected={selectedResources.includes(order.id)} position={index}>
+                  <IndexTable.Row id={order.id} key={order.id} position={index}>
                     <IndexTable.Cell>
                       <Text variant="bodyMd" fontWeight="bold" as="span">
                         #{order.order_number || order.order_id.split('/').pop()}
