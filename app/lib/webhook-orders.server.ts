@@ -89,7 +89,7 @@ export async function verifyShopifyWebhook(request: Request): Promise<string | n
   }
 
   const rawBody = await request.text();
-  const digest = createHmac("sha256", requireEnv("SHOPIFY_WEBHOOK_SECRET"))
+  const digest = createHmac("sha256", requireEnv("SHOPIFY_API_SECRET"))
     .update(rawBody, "utf8")
     .digest("base64");
 
