@@ -1,6 +1,6 @@
 import { json, type ActionFunctionArgs } from "@remix-run/node";
 import { useFetcher } from "@remix-run/react";
-import { Page, Card, Button, Banner, Text } from "@shopify/polaris";
+import { Page, Card, Button, Banner, Text, BlockStack } from "@shopify/polaris";
 import { authenticate } from "../lib/shopify.server";
 import { runBackfill } from "../lib/backfill.server";
 
@@ -15,16 +15,17 @@ function isProtectedCustomerDataError(error: string | undefined): boolean {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-
   try {
+    const { admin } = await authenticate.admin(request);
     const result = await runBackfill(admin);
-    return json({ success: true, result });
+    return json({ success: true, result, error: null });
   } catch (error) {
     if (error instanceof Response) {
       throw error;
     }
-    return json({ success: false, error: String(error) });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Backfill failed:", message);
+    return json({ success: false, result: null, error: message });
   }
 }
 
@@ -36,53 +37,52 @@ export default function BackfillPage() {
   return (
     <Page title="Data Backfill">
       <Card>
-        <Text as="p" variant="bodyMd">
-          Click the button below to import all historical orders from Shopify
-          into your Supabase database.
-        </Text>
-        <br />
+        <BlockStack gap="400">
+          <Text as="p" variant="bodyMd">
+            Click the button below to import all historical orders from Shopify
+            into your Supabase database. This will sync orders that were missed
+            due to webhook failures.
+          </Text>
 
-        {result?.success && (
-          <Banner tone="success">
-            Backfill complete! Total: {result.result.total} | Inserted:{" "}
-            {result.result.inserted} | Updated: {result.result.updated}
-          </Banner>
-        )}
-
-        {result?.success === false &&
-          isProtectedCustomerDataError(result.error) && (
-            <Banner tone="critical" title="Shopify order access is not approved">
-              <Text as="p" variant="bodyMd">
-                This app already requests the read_orders scope, but Shopify also
-                requires Protected customer data access before an app can read
-                Order records. In your Shopify Partner Dashboard, open this app,
-                go to API access requests, request Protected customer data
-                access, and select the order/customer fields used by the app.
-              </Text>
-              <br />
-              <Text as="p" variant="bodyMd">
-                For development-store testing, Shopify allows access after you
-                select the required data and fields in the Partner Dashboard.
-                Then reinstall the app so the updated permission grant is used.
-              </Text>
-              <br />
-              <Text as="p" variant="bodyMd">
-                Shopify docs: {PROTECTED_CUSTOMER_DATA_URL}
-              </Text>
+          {result?.success && (
+            <Banner tone="success">
+              Backfill complete! Total: {result.result?.total} | Inserted:{" "}
+              {result.result?.inserted} | Updated: {result.result?.updated}
             </Banner>
           )}
 
-        {result?.success === false &&
-          !isProtectedCustomerDataError(result.error) && (
-            <Banner tone="critical">Error: {result.error}</Banner>
-          )}
+          {result?.success === false &&
+            isProtectedCustomerDataError(result.error ?? undefined) && (
+              <Banner tone="critical" title="Shopify order access is not approved">
+                <Text as="p" variant="bodyMd">
+                  This app already requests the read_orders scope, but Shopify also
+                  requires Protected customer data access before an app can read
+                  Order records. In your Shopify Partner Dashboard, open this app,
+                  go to API access requests, request Protected customer data
+                  access, and select the order/customer fields used by the app.
+                </Text>
+                <br />
+                <Text as="p" variant="bodyMd">
+                  Shopify docs: {PROTECTED_CUSTOMER_DATA_URL}
+                </Text>
+              </Banner>
+            )}
 
-        <br />
-        <fetcher.Form method="post">
-          <Button variant="primary" loading={isLoading} submit>
-            {isLoading ? "Importing Orders..." : "Start Backfill"}
-          </Button>
-        </fetcher.Form>
+          {result?.success === false &&
+            !isProtectedCustomerDataError(result.error ?? undefined) && (
+              <Banner tone="critical" title="Backfill failed">
+                <Text as="p" variant="bodyMd">
+                  {result.error || "An unknown error occurred."}
+                </Text>
+              </Banner>
+            )}
+
+          <fetcher.Form method="post">
+            <Button variant="primary" loading={isLoading} submit>
+              {isLoading ? "Importing Orders..." : "Start Backfill"}
+            </Button>
+          </fetcher.Form>
+        </BlockStack>
       </Card>
     </Page>
   );
