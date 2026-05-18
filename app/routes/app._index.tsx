@@ -1,5 +1,5 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
+import { useLoaderData, useNavigation, useSearchParams, useSubmit, useFetcher } from "@remix-run/react";
 import { Link } from "@remix-run/react";
 import {
   BlockStack,
@@ -124,6 +124,7 @@ export default function Dashboard() {
   const { kpis, customers, orders } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
+  const syncFetcher = useFetcher();
   const [activePaymentPopover, setActivePaymentPopover] = useState<string | null>(null);
   const [activeFulfillmentPopover, setActiveFulfillmentPopover] = useState<string | null>(null);
 
@@ -211,7 +212,7 @@ export default function Dashboard() {
   return (
     <Page
       title="Analytics Dashboard"
-      secondaryActions={[{ content: "Sync Latest Orders", onAction: () => submit({ sync: "latest" }, { method: "post" }) }]}
+      secondaryActions={[{ content: syncFetcher.state !== "idle" ? "Syncing..." : "Sync Latest Orders", onAction: () => syncFetcher.submit({ sync: "latest" }, { method: "post" }) }]}
       primaryAction={
         <Popover
           active={popoverActive}
