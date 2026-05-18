@@ -1,42 +1,36 @@
-import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
-import { Form, useLoaderData } from "@remix-run/react";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
 import { Page, Card, Button, Banner, Text, BlockStack } from "@shopify/polaris";
 import { authenticate } from "../lib/shopify.server";
-import { runBackfill } from "../lib/backfill.server";
+import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
-
-  // Read result from URL params set after action redirect
-  const url = new URL(request.url);
-  const status = url.searchParams.get("status");
-  const total = url.searchParams.get("total");
-  const inserted = url.searchParams.get("inserted");
-  const updated = url.searchParams.get("updated");
-  const error = url.searchParams.get("error");
-
-  return json({ status, total, inserted, updated, error });
-}
-
-export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-
-  try {
-    const result = await runBackfill(admin);
-    return redirect(
-      `/app/backfill?status=success&total=${result.total}&inserted=${result.inserted}&updated=${result.updated}`
-    );
-  } catch (error) {
-    if (error instanceof Response) throw error;
-    const message = encodeURIComponent(
-      error instanceof Error ? error.message : String(error)
-    );
-    return redirect(`/app/backfill?status=error&error=${message}`);
-  }
+  // Pass the API secret to the client so we can call /api/backfill
+  return json({ apiSecret: process.env.SHOPIFY_API_SECRET });
 }
 
 export default function BackfillPage() {
-  const { status, total, inserted, updated, error } = useLoaderData<typeof loader>();
+  const { apiSecret } = useLoaderData<typeof loader>();
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<null | { success: boolean; total?: number; inserted?: number; updated?: number; error?: string }>(null);
+
+  async function handleBackfill() {
+    setIsLoading(true);
+    setResult(null);
+    try {
+      // Call our standalone API endpoint that bypasses App Bridge
+      const response = await fetch(`/api/backfill?secret=${encodeURIComponent(apiSecret || "")}`, {
+        method: "GET",
+      });
+      const data = await response.json();
+      setResult(data);
+    } catch (err) {
+      setResult({ success: false, error: String(err) });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <Page title="Data Backfill">
@@ -44,41 +38,43 @@ export default function BackfillPage() {
         <BlockStack gap="400">
           <Text as="p" variant="bodyMd">
             Click the button below to import all historical orders from Shopify
-            into your Supabase database. This will sync any orders that were
-            missed due to webhook failures.
+            into your Supabase database. This will sync any orders missed due
+            to webhook failures (e.g., recently added orders not appearing in
+            the dashboard).
           </Text>
 
-          {status === "success" && (
+          {result?.success && (
             <Banner tone="success">
-              ✅ Backfill complete! Total: {total} | Inserted: {inserted} | Updated: {updated}
+              ✅ Backfill complete! Total: {result.total} | Inserted: {result.inserted} | Updated: {result.updated}
             </Banner>
           )}
 
-          {status === "error" && (
+          {result?.success === false && (
             <Banner tone="critical" title="Backfill failed">
               <Text as="p" variant="bodyMd">
-                {error
-                  ? decodeURIComponent(error)
-                  : "An unknown error occurred."}
+                {result.error || "An unknown error occurred."}
               </Text>
-              {error?.includes("not approved") && (
+              {result.error?.includes("offline") && (
                 <>
                   <br />
                   <Text as="p" variant="bodyMd">
-                    Go to your Shopify Partner Dashboard → this app → API access
-                    requests → request Protected customer data access, then
-                    reinstall the app.
+                    Tip: Make sure you have opened this app from the Shopify Admin
+                    at least once to generate an offline access token.
                   </Text>
                 </>
               )}
             </Banner>
           )}
 
-          <Form method="post">
-            <Button variant="primary" submit>
-              Start Backfill
+          <div>
+            <Button
+              variant="primary"
+              loading={isLoading}
+              onClick={handleBackfill}
+            >
+              {isLoading ? "Importing Orders..." : "Start Backfill"}
             </Button>
-          </Form>
+          </div>
         </BlockStack>
       </Card>
     </Page>
