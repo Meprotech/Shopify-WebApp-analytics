@@ -247,9 +247,14 @@ export default function Dashboard() {
                   { title: 'Order' },
                   { title: 'Date' },
                   { title: 'Customer' },
+                  { title: 'Channel' },
                   { title: 'Total' },
-                  { title: 'Payment Status' },
-                  { title: 'Fulfillment Status' },
+                  { title: 'Payment status' },
+                  { title: 'Fulfillment status' },
+                  { title: 'Items' },
+                  { title: 'Delivery status' },
+                  { title: 'Delivery method' },
+                  { title: 'Tags' },
                 ]}
                 selectable={false}
               >
@@ -261,13 +266,14 @@ export default function Dashboard() {
                       </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {new Date(order.created_at).toLocaleDateString()}
+                      {new Intl.DateTimeFormat('en-US', { weekday: 'long', hour: 'numeric', minute: 'numeric' }).format(new Date(order.created_at))}
                     </IndexTable.Cell>
-                    <IndexTable.Cell>{order.customer_name || 'Unknown'}</IndexTable.Cell>
+                    <IndexTable.Cell>{order.customer_name || 'No customer'}</IndexTable.Cell>
+                    <IndexTable.Cell></IndexTable.Cell>
                     <IndexTable.Cell>{formatCurrency(order.total_price || 0)}</IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Badge tone={order.financial_status === 'paid' ? 'success' : 'attention'}>
-                        {order.financial_status || 'unpaid'}
+                      <Badge progress={order.financial_status === 'paid' ? 'complete' : 'incomplete'}>
+                        {order.financial_status ? order.financial_status.charAt(0).toUpperCase() + order.financial_status.slice(1) : 'Unpaid'}
                       </Badge>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
@@ -277,7 +283,7 @@ export default function Dashboard() {
                         options={[
                           { label: 'Unfulfilled', value: 'unfulfilled' },
                           { label: 'Fulfilled', value: 'fulfilled' },
-                          { label: 'Partial', value: 'partial' },
+                          { label: 'Partially fulfilled', value: 'partial' },
                           { label: 'Restocked', value: 'restocked' },
                         ]}
                         value={order.fulfillment_status || 'unfulfilled'}
@@ -288,6 +294,21 @@ export default function Dashboard() {
                           );
                         }}
                       />
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {(() => {
+                        const count = Array.isArray(order.items_json) ? order.items_json.length : 0;
+                        return `${count} ${count === 1 ? 'item' : 'items'}`;
+                      })()}
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {order.fulfillment_status === 'fulfilled' ? <Badge progress="complete">Delivered</Badge> : (order.fulfillment_status === 'partial' ? <Badge progress="partiallyComplete">Tracking added</Badge> : null)}
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      Shipping
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {order.fulfillment_status === 'fulfilled' ? <Badge>Ekart</Badge> : <Badge>Delhivery</Badge>}
                     </IndexTable.Cell>
                   </IndexTable.Row>
                 ))}
