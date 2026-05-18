@@ -61,6 +61,23 @@ async function loadOrders(startDate?: string, endDate?: string): Promise<OrderRo
   return data;
 }
 
+export async function getOrders(startDate?: string, endDate?: string): Promise<OrderRow[]> {
+  return loadOrders(startDate, endDate);
+}
+
+export async function updateOrderStatus(id: string, fulfillment_status: string) {
+  if (!isSupabaseConfigured) return false;
+  const { error } = await supabase
+    .from("store_orders")
+    .update({ fulfillment_status })
+    .eq("id", id);
+  if (error) {
+    console.error("Failed to update order status", error);
+    return false;
+  }
+  return true;
+}
+
 async function loadCostMap(): Promise<Map<string, number>> {
   if (!isSupabaseConfigured) {
     return new Map<string, number>();

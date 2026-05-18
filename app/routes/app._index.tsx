@@ -1,5 +1,5 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useNavigation, useSearchParams } from "@remix-run/react";
+import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useNavigation, useSearchParams, useSubmit } from "@remix-run/react";
 import { Link } from "@remix-run/react";
 import {
   BlockStack,
@@ -12,18 +12,35 @@ import {
   ActionList,
   Popover,
   TextField,
+  IndexTable,
+  Badge,
+  Select,
+  Text,
 } from "@shopify/polaris";
 import { useState, useCallback } from "react";
 
 import { DashboardCards } from "../components/DashboardCards";
-import { ProfitChart } from "../components/ProfitChart";
 import { TopProductsCard } from "../components/TopProductsCard";
 import {
   getCustomerLifetimeValue,
   getDashboardKPIs,
   getNetProfitByMonth,
+  getOrders,
+  updateOrderStatus,
 } from "../lib/analytics.server";
 import { authenticate } from "../lib/shopify.server";
+
+export async function action({ request }: ActionFunctionArgs) {
+  await authenticate.admin(request);
+  const formData = await request.formData();
+  const id = formData.get("id") as string;
+  const fulfillment_status = formData.get("fulfillment_status") as string;
+  
+  if (id && fulfillment_status) {
+    await updateOrderStatus(id, fulfillment_status);
+  }
+  return json({ success: true });
+}
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
@@ -32,16 +49,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
 
-  const [kpis, customers, monthlyProfit] = await Promise.all([
+  const [kpis, customers, monthlyProfit, orders] = await Promise.all([
     getDashboardKPIs(startDate || undefined, endDate || undefined),
     getCustomerLifetimeValue(startDate || undefined, endDate || undefined),
     getNetProfitByMonth(startDate || undefined, endDate || undefined),
+    getOrders(startDate || undefined, endDate || undefined),
   ]);
 
   return json({
     kpis,
     customers: customers.slice(0, 5),
     monthlyProfit,
+    orders,
   });
 }
 
@@ -56,8 +75,9 @@ function formatCurrency(value: number): string {
 }
 
 export default function Dashboard() {
-  const { kpis, customers, monthlyProfit } = useLoaderData<typeof loader>();
+  const { kpis, customers, orders } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
+  const submit = useSubmit();
   const isLoading = navigation.state !== "idle";
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -240,10 +260,60 @@ export default function Dashboard() {
           </Layout.Section>
 
           <Layout.Section>
-            <ProfitChart
-              points={monthlyProfit}
-              formatCurrency={formatCurrency}
-            />
+            <LegacyCard title="Order Status">
+              <IndexTable
+                resourceName={{ singular: 'order', plural: 'orders' }}
+                itemCount={orders.length}
+                headings={[
+                  { title: 'Order' },
+                  { title: 'Date' },
+                  { title: 'Customer' },
+                  { title: 'Total' },
+                  { title: 'Payment Status' },
+                  { title: 'Fulfillment Status' },
+                ]}
+                selectable={false}
+              >
+                {orders.map((order, index) => (
+                  <IndexTable.Row id={order.id} key={order.id} position={index}>
+                    <IndexTable.Cell>
+                      <Text variant="bodyMd" fontWeight="bold" as="span">
+                        #{order.order_number || order.order_id.split('/').pop()}
+                      </Text>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>{order.customer_name || 'Unknown'}</IndexTable.Cell>
+                    <IndexTable.Cell>{formatCurrency(order.total_price || 0)}</IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <Badge tone={order.financial_status === 'paid' ? 'success' : 'attention'}>
+                        {order.financial_status || 'unpaid'}
+                      </Badge>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <Select
+                        label="Fulfillment status"
+                        labelHidden
+                        options={[
+                          { label: 'Unfulfilled', value: 'unfulfilled' },
+                          { label: 'Fulfilled', value: 'fulfilled' },
+                          { label: 'Partial', value: 'partial' },
+                          { label: 'Restocked', value: 'restocked' },
+                        ]}
+                        value={order.fulfillment_status || 'unfulfilled'}
+                        onChange={(value) => {
+                          submit(
+                            { id: order.id, fulfillment_status: value },
+                            { method: "post" }
+                          );
+                        }}
+                      />
+                    </IndexTable.Cell>
+                  </IndexTable.Row>
+                ))}
+              </IndexTable>
+            </LegacyCard>
           </Layout.Section>
         </Layout>
       </BlockStack>
