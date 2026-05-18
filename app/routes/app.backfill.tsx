@@ -33,7 +33,7 @@ export default function BackfillPage() {
   }
 
   return (
-    <Page title="Data Backfill">
+    <Page title="">
       <Card>
         <BlockStack gap="400">
           <Text as="p" variant="bodyMd">
