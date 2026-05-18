@@ -5,13 +5,13 @@ import { authenticate } from "../lib/shopify.server";
 import { useState } from "react";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
-  // Pass the API secret to the client so we can call /api/backfill
-  return json({ apiSecret: process.env.SHOPIFY_API_SECRET });
+  const { session } = await authenticate.admin(request);
+  // Pass the API secret + current shop so /api/backfill works without extra env vars
+  return json({ apiSecret: process.env.SHOPIFY_API_SECRET, shop: session.shop });
 }
 
 export default function BackfillPage() {
-  const { apiSecret } = useLoaderData<typeof loader>();
+  const { apiSecret, shop } = useLoaderData<typeof loader>();
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<null | { success: boolean; total?: number; inserted?: number; updated?: number; error?: string }>(null);
 
@@ -20,7 +20,7 @@ export default function BackfillPage() {
     setResult(null);
     try {
       // Call our standalone API endpoint that bypasses App Bridge
-      const response = await fetch(`/api/backfill?secret=${encodeURIComponent(apiSecret || "")}`, {
+      const response = await fetch(`/api/backfill?secret=${encodeURIComponent(apiSecret || "")}&shop=${encodeURIComponent(shop || "")}`, {
         method: "GET",
       });
       const data = await response.json();

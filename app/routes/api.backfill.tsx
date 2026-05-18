@@ -26,10 +26,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       });
     }
 
-    const shop = process.env.SHOPIFY_SHOP_DOMAIN;
+    const shop = url.searchParams.get("shop") || process.env.SHOPIFY_SHOP_DOMAIN;
     if (!shop) {
       return new Response(
-        JSON.stringify({ error: "Missing SHOPIFY_SHOP_DOMAIN env var" }),
+        JSON.stringify({ error: "Missing shop (pass ?shop= or set SHOPIFY_SHOP_DOMAIN env var)" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
