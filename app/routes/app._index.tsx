@@ -36,6 +36,7 @@ import {
   updateOrderStatus,
 } from "../lib/analytics.server";
 import { authenticate } from "../lib/shopify.server";
+import { supabase } from "../lib/supabase.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   await authenticate.admin(request);
@@ -53,6 +54,37 @@ export async function action({ request }: ActionFunctionArgs) {
       await updateOrderStatus(id, updates);
     }
   }
+
+  if (formData.get("sync") === "latest") {
+    // Simple recent orders sync using Shopify Admin API + upsert
+    const { admin } = await authenticate.admin(request);
+    const response = await admin.graphql(`
+      query RecentOrders { orders(first: 50, sortKey: UPDATED_AT, reverse: true) { nodes { id name totalPriceSet { shopMoney { amount } } subtotalPriceSet { shopMoney { amount } } email displayFinancialStatus displayFulfillmentStatus customer { firstName lastName } lineItems(first: 20) { nodes { title quantity variant { price product { id title } } } } } } }
+    `);
+    const data: any = await response.json();
+    const orders = data.data?.orders?.nodes || [];
+    for (const order of orders) {
+      await supabase.from("store_orders").upsert({
+        order_id: order.id,
+        order_number: parseInt(order.name.replace(/\D/g, "")) || null,
+        total_price: parseFloat(order.totalPriceSet?.shopMoney?.amount || "0"),
+        subtotal_price: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0"),
+        customer_email: order.email,
+        customer_name: [order.customer?.firstName, order.customer?.lastName].filter(Boolean).join(" ") || null,
+        financial_status: order.displayFinancialStatus?.toLowerCase() || null,
+        fulfillment_status: order.displayFulfillmentStatus?.toLowerCase() || null,
+        items_json: order.lineItems.nodes.map((li: any) => ({
+          title: li.title,
+          quantity: li.quantity,
+          variantPrice: parseFloat(li.variant?.price || "0"),
+          productId: li.variant?.product?.id || null,
+          productTitle: li.variant?.product?.title || li.title,
+        })),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "order_id" });
+    }
+  }
+
   return json({ success: true });
 }
 
@@ -179,6 +211,7 @@ export default function Dashboard() {
   return (
     <Page
       title="Analytics Dashboard"
+      secondaryActions={[{ content: "Sync Latest Orders", onAction: () => submit({ sync: "latest" }, { method: "post" }) }]}
       primaryAction={
         <Popover
           active={popoverActive}

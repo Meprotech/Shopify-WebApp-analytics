@@ -74,7 +74,6 @@ export default function App() {
           <NavMenu>
             <a href="/app" rel="home">Dashboard</a>
             <a href="/app/delivery">Delivery Status</a>
-            <a href="/app/backfill">Data Backfill</a>
           </NavMenu>
           <GlobalLoading />
           <Outlet />
