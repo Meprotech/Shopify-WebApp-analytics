@@ -1,8 +1,13 @@
-import { json, type ActionFunctionArgs } from "@remix-run/node";
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { useFetcher } from "@remix-run/react";
 import { Page, Card, Button, Banner, Text, BlockStack } from "@shopify/polaris";
 import { authenticate } from "../lib/shopify.server";
 import { runBackfill } from "../lib/backfill.server";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  await authenticate.admin(request);
+  return json({});
+}
 
 const PROTECTED_CUSTOMER_DATA_URL =
   "https://shopify.dev/docs/apps/launch/protected-customer-data";
