@@ -124,6 +124,7 @@ export default function Dashboard() {
   const { kpis, customers, orders } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
+  const syncFetcher = useFetcher();
   const [activePaymentPopover, setActivePaymentPopover] = useState<string | null>(null);
   const [activeFulfillmentPopover, setActiveFulfillmentPopover] = useState<string | null>(null);
 
@@ -198,20 +199,20 @@ export default function Dashboard() {
     setPopoverActive(false);
   }, [startDate, endDate, searchParams, setSearchParams]);
 
-  const handleSync = async () => {
-    await fetch(window.location.href, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ sync: "latest" }),
-      credentials: "include",
-    });
-    window.location.reload();
-  };
+  const clearFilter = useCallback(() => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    const params = new URLSearchParams(searchParams);
+    params.delete("startDate");
+    params.delete("endDate");
+    setSearchParams(params);
+    setPopoverActive(false);
+  }, [searchParams, setSearchParams]);
 
   return (
     <Page
       title="Analytics Dashboard"
-      secondaryActions={[{ content: "Sync Latest Orders", onAction: handleSync }]}
+      secondaryActions={[{ content: syncFetcher.state !== "idle" ? "Syncing..." : "Sync Latest Orders", onAction: () => syncFetcher.submit({ sync: "latest" }, { method: "post" }) }]}
       primaryAction={
         <Popover
           active={popoverActive}
