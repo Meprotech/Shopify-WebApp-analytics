@@ -59,7 +59,28 @@ export async function action({ request }: ActionFunctionArgs) {
     // Simple recent orders sync using Shopify Admin API + upsert
     const { admin } = await authenticate.admin(request);
     const response = await admin.graphql(`
-      query RecentOrders { orders(first: 50, sortKey: UPDATED_AT, reverse: true) { nodes { id name totalPriceSet { shopMoney { amount } } subtotalPriceSet { shopMoney { amount } } email displayFinancialStatus displayFulfillmentStatus customer { firstName lastName } lineItems(first: 20) { nodes { title quantity variant { price product { id title } } } } } } }
+      query GetLatestOrders {
+        orders(first: 50, sortKey: CREATED_AT, reverse: true) {
+          nodes {
+            id
+            name
+            createdAt
+            totalPriceSet { shopMoney { amount currencyCode } }
+            subtotalPriceSet { shopMoney { amount } }
+            email
+            displayFinancialStatus
+            displayFulfillmentStatus
+            customer { firstName lastName }
+            lineItems(first: 20) {
+              nodes {
+                title
+                quantity
+                variant { price product { id title } }
+              }
+            }
+          }
+        }
+      }
     `);
     const data: any = await response.json();
     const orders = data.data?.orders?.nodes || [];
