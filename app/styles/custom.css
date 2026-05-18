@@ -10,9 +10,7 @@
 }
 
 .kpi-value {
-  background: linear-gradient(135deg, #008060 0%, #20B2AA 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #000000;
   font-weight: 800;
   display: inline-block;
 }
