@@ -1,7 +1,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import { Page, Card, Button, Banner, Text, BlockStack } from "@shopify/polaris";
-import { authenticate, shopify } from "../lib/shopify.server";
+import { authenticate } from "../lib/shopify.server";
 import { supabase } from "../lib/supabase.server";
 import {
   customerName,
@@ -20,21 +20,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const { session: authSession } = await authenticate.admin(request);
   const shop = authSession.shop;
-  
-  // Prefer offline (long-lived) access token over online (24h) for the backfill
-  const sessions = await shopify.sessionStorage.findSessionsByShop(shop);
-  const targetSession =
-    sessions.find((s) => s.accessToken && !s.isOnline) ??
-    sessions.find((s) => s.accessToken);
 
-  if (!targetSession?.accessToken) {
+  if (!authSession.accessToken) {
     return json({
       success: false,
-      error: `No valid access token found for shop ${shop}. Found ${sessions.length} sessions.`,
+      error: `No valid access token found for shop ${shop} in the current session.`,
     });
   }
 
-  const accessToken = targetSession.accessToken;
+  const accessToken = authSession.accessToken;
   const API_VERSION = "2024-10";
 
   let cursor: string | null = null;
