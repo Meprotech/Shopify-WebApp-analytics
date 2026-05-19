@@ -135,47 +135,53 @@ export default function DeliveryStatus() {
 
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
-            <LegacyCard title="Pending Order Details">
-              {pendingRows.length > 0 ? (
-                <DataTable
-                  columnContentTypes={["text", "text"]}
-                  headings={["Order#", "Date & Time"]}
-                  rows={pendingRows}
-                />
-              ) : (
-                <LegacyCard.Section>
-                  <Text as="p" tone="subdued">No pending orders.</Text>
-                </LegacyCard.Section>
-              )}
-            </LegacyCard>
+            <div className="modern-card">
+              <LegacyCard title="Pending Order Details">
+                {pendingRows.length > 0 ? (
+                  <DataTable
+                    columnContentTypes={["text", "text"]}
+                    headings={["Order#", "Date & Time"]}
+                    rows={pendingRows}
+                  />
+                ) : (
+                  <LegacyCard.Section>
+                    <Text as="p" tone="subdued">No pending orders.</Text>
+                  </LegacyCard.Section>
+                )}
+              </LegacyCard>
+            </div>
 
-            <LegacyCard title="On The Way Order Details">
-              {onTheWayRows.length > 0 ? (
-                <DataTable
-                  columnContentTypes={["text", "text"]}
-                  headings={["Order#", "Date & Time"]}
-                  rows={onTheWayRows}
-                />
-              ) : (
-                <LegacyCard.Section>
-                  <Text as="p" tone="subdued">No orders on the way.</Text>
-                </LegacyCard.Section>
-              )}
-            </LegacyCard>
+            <div className="modern-card">
+              <LegacyCard title="On The Way Order Details">
+                {onTheWayRows.length > 0 ? (
+                  <DataTable
+                    columnContentTypes={["text", "text"]}
+                    headings={["Order#", "Date & Time"]}
+                    rows={onTheWayRows}
+                  />
+                ) : (
+                  <LegacyCard.Section>
+                    <Text as="p" tone="subdued">No orders on the way.</Text>
+                  </LegacyCard.Section>
+                )}
+              </LegacyCard>
+            </div>
 
-            <LegacyCard title="Delivered Order Details">
-              {deliveredRows.length > 0 ? (
-                <DataTable
-                  columnContentTypes={["text", "text"]}
-                  headings={["Order#", "Date & Time"]}
-                  rows={deliveredRows}
-                />
-              ) : (
-                <LegacyCard.Section>
-                  <Text as="p" tone="subdued">No delivered orders.</Text>
-                </LegacyCard.Section>
-              )}
-            </LegacyCard>
+            <div className="modern-card">
+              <LegacyCard title="Delivered Order Details">
+                {deliveredRows.length > 0 ? (
+                  <DataTable
+                    columnContentTypes={["text", "text"]}
+                    headings={["Order#", "Date & Time"]}
+                    rows={deliveredRows}
+                  />
+                ) : (
+                  <LegacyCard.Section>
+                    <Text as="p" tone="subdued">No delivered orders.</Text>
+                  </LegacyCard.Section>
+                )}
+              </LegacyCard>
+            </div>
           </InlineGrid>
         </Layout.Section>
       </Layout>

@@ -2,6 +2,13 @@
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   border-radius: 12px;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.modern-card > * {
+  flex: 1;
+  height: 100%;
 }
 
 .modern-card:hover {
