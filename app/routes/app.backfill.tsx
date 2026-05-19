@@ -135,8 +135,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return json({ success: true, total, inserted, updated });
   } catch (error) {
-    // Let Response objects (auth redirects, 401s) propagate — Remix handles them
-    if (error instanceof Response) throw error;
+    // Extract meaningful info from Response objects instead of showing "[object Response]"
+    if (error instanceof Response) {
+      const body = await error.text().catch(() => "(could not read body)");
+      const message = `Request failed (${error.status}): ${body}`;
+      return json({ success: false, error: message });
+    }
     const message = error instanceof Error ? error.message : JSON.stringify(error);
     return json({ success: false, error: message });
   }

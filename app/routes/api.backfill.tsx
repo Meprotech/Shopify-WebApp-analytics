@@ -186,8 +186,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    // Let Response objects (auth redirects, 401s) propagate — Remix handles them
-    if (error instanceof Response) throw error;
+    // Extract meaningful info from Response objects instead of showing "[object Response]"
+    if (error instanceof Response) {
+      const body = await error.text().catch(() => "(could not read body)");
+      const message = `Request failed (${error.status}): ${body}`;
+      console.error("Backfill API error:", error, body);
+      return new Response(
+        JSON.stringify({ success: false, error: `API Error: ${message}` }),
+        { status: error.status, headers: { "Content-Type": "application/json" } }
+      );
+    }
     const message = error instanceof Error ? error.message : JSON.stringify(error);
     console.error("Backfill API error:", error);
     return new Response(
