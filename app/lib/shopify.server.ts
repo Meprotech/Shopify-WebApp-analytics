@@ -3,6 +3,7 @@ import {
   AppDistribution,
   shopifyApp,
   type AdminApiContext,
+  DeliveryMethod,
 } from "@shopify/shopify-app-remix/server";
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 import path from "path";
@@ -68,6 +69,20 @@ export const shopify = shopifyApp({
   isEmbeddedApp: true,
   sessionStorage: new PostgreSQLSessionStorage(requireEnv("DATABASE_URL")),
   scopes: ["read_orders", "read_products", "write_products", "read_customers"],
+  webhooks: {
+    ORDERS_CREATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      path: "/webhooks/orders-create",
+    },
+    ORDERS_UPDATED: {
+      deliveryMethod: DeliveryMethod.Http,
+      path: "/webhooks/orders-updated",
+    },
+    ORDERS_DELETE: {
+      deliveryMethod: DeliveryMethod.Http,
+      path: "/webhooks/orders-delete",
+    },
+  },
 });
 
 export const authenticate = shopify.authenticate;

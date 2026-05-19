@@ -52,6 +52,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const accessToken = session.accessToken;
 
     // Run backfill using direct Shopify GraphQL calls
+    const activeOrderIds: string[] = [];
     let cursor: string | null = null;
     let hasNextPage = true;
     let total = 0;
@@ -107,6 +108,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const existingSet = new Set((existing ?? []).map((r) => r.order_id));
 
       for (const order of data.orders.nodes) {
+        activeOrderIds.push(order.id);
         const wasExisting = existingSet.has(order.id);
         const { error } = await supabase.from("store_orders").upsert(
           {
@@ -137,6 +139,29 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       hasNextPage = data.orders.pageInfo.hasNextPage;
       cursor = data.orders.pageInfo.endCursor;
+    }
+
+    // Prune deleted orders from the database
+    if (activeOrderIds.length > 0) {
+      const { error: pruneError } = await supabase
+        .from("store_orders")
+        .delete()
+        .not("order_id", "in", `(${activeOrderIds.map(id => `"${id}"`).join(",")})`);
+      if (pruneError) {
+        console.error("Failed to prune deleted orders:", pruneError);
+      } else {
+        console.log(`Pruned deleted orders. Active orders: ${activeOrderIds.length}`);
+      }
+    } else {
+      // If there are no active orders on Shopify, delete all orders in the database
+      const { error: pruneError } = await supabase
+        .from("store_orders")
+        .delete();
+      if (pruneError) {
+        console.error("Failed to clear database orders:", pruneError);
+      } else {
+        console.log("Cleared all orders from database because Shopify has 0 orders.");
+      }
     }
 
     return new Response(
