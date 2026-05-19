@@ -52,10 +52,16 @@ export async function loader(_: LoaderFunctionArgs) {
       createdAt: order.created_at,
     };
 
-    if (order.fulfillment_status === 'fulfilled') {
+    const status = (order.fulfillment_status ?? "").toLowerCase().trim();
+    if (status === "fulfilled") {
       delivered++;
       deliveredList.push(mappedOrder);
-    } else if (order.fulfillment_status === 'partial') {
+    } else if (
+      status === "partial" ||
+      status === "partially_fulfilled" ||
+      status === "in_progress" ||
+      status === "in progress"
+    ) {
       onTheWay++;
       onTheWayList.push(mappedOrder);
     } else {
