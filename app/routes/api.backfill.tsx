@@ -186,7 +186,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    // Let Response objects (auth redirects, 401s) propagate — Remix handles them
+    if (error instanceof Response) throw error;
+    const message = error instanceof Error ? error.message : JSON.stringify(error);
     console.error("Backfill API error:", error);
     return new Response(
       JSON.stringify({ success: false, error: `API Error: ${message}` }),

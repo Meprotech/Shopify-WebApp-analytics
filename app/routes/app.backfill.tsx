@@ -135,7 +135,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return json({ success: true, total, inserted, updated });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    // Let Response objects (auth redirects, 401s) propagate — Remix handles them
+    if (error instanceof Response) throw error;
+    const message = error instanceof Error ? error.message : JSON.stringify(error);
     return json({ success: false, error: message });
   }
 }
