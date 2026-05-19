@@ -143,14 +143,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Prune deleted orders from the database
     if (activeOrderIds.length > 0) {
-      const { error: pruneError } = await supabase
+      const { data: dbOrders, error: fetchError } = await supabase
         .from("store_orders")
-        .delete()
-        .not("order_id", "in", `(${activeOrderIds.map(id => `"${id}"`).join(",")})`);
-      if (pruneError) {
-        console.error("Failed to prune deleted orders:", pruneError);
-      } else {
-        console.log(`Pruned deleted orders. Active orders: ${activeOrderIds.length}`);
+        .select("order_id");
+
+      if (fetchError) {
+        console.error("Failed to fetch db orders for pruning:", fetchError);
+      } else if (dbOrders) {
+        const dbOrderIds = dbOrders.map((o) => o.order_id);
+        const toDelete = dbOrderIds.filter((id) => !activeOrderIds.includes(id));
+
+        if (toDelete.length > 0) {
+          console.log(`Pruning deleted orders from DB:`, toDelete);
+          const { error: pruneError } = await supabase
+            .from("store_orders")
+            .delete()
+            .in("order_id", toDelete);
+
+          if (pruneError) {
+            console.error("Failed to prune deleted orders:", pruneError);
+          } else {
+            console.log(`Successfully pruned ${toDelete.length} deleted orders.`);
+          }
+        } else {
+          console.log("No orders need to be pruned from DB.");
+        }
       }
     } else {
       // If there are no active orders on Shopify, delete all orders in the database
