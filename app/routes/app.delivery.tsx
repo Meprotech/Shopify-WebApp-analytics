@@ -10,15 +10,10 @@ export const links = () => [
   { rel: "stylesheet", href: customStyles },
 ];
 
-const currencyFormatter = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
+const dateTimeFormatter = new Intl.DateTimeFormat("en-IN", {
+  dateStyle: "medium",
+  timeStyle: "short",
 });
-const dateFormatter = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" });
-
-function formatCurrency(value: number | null): string {
-  return currencyFormatter.format(value ?? 0);
-}
 
 function getTableRows(ordersList: any[], shop: string) {
   return ordersList.map((order) => [
@@ -30,10 +25,7 @@ function getTableRows(ordersList: any[], shop: string) {
     >
       {order.orderNumber ? `#${order.orderNumber}` : order.orderId}
     </a>,
-    order.customer,
-    dateFormatter.format(new Date(order.createdAt)),
-    formatCurrency(order.totalPrice),
-    order.financialStatus ?? "Unknown",
+    dateTimeFormatter.format(new Date(order.createdAt)),
   ]);
 }
 
@@ -142,51 +134,49 @@ export default function DeliveryStatus() {
         </Layout.Section>
 
         <Layout.Section>
-          <LegacyCard title="Pending Order Details">
-            {pendingRows.length > 0 ? (
-              <DataTable
-                columnContentTypes={["text", "text", "text", "numeric", "text"]}
-                headings={["Order#", "Customer", "Date", "Total", "Financial Status"]}
-                rows={pendingRows}
-              />
-            ) : (
-              <LegacyCard.Section>
-                <Text as="p" tone="subdued">No pending orders.</Text>
-              </LegacyCard.Section>
-            )}
-          </LegacyCard>
-        </Layout.Section>
+          <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
+            <LegacyCard title="Pending Order Details">
+              {pendingRows.length > 0 ? (
+                <DataTable
+                  columnContentTypes={["text", "text"]}
+                  headings={["Order#", "Date & Time"]}
+                  rows={pendingRows}
+                />
+              ) : (
+                <LegacyCard.Section>
+                  <Text as="p" tone="subdued">No pending orders.</Text>
+                </LegacyCard.Section>
+              )}
+            </LegacyCard>
 
-        <Layout.Section>
-          <LegacyCard title="On The Way Order Details">
-            {onTheWayRows.length > 0 ? (
-              <DataTable
-                columnContentTypes={["text", "text", "text", "numeric", "text"]}
-                headings={["Order#", "Customer", "Date", "Total", "Financial Status"]}
-                rows={onTheWayRows}
-              />
-            ) : (
-              <LegacyCard.Section>
-                <Text as="p" tone="subdued">No orders on the way.</Text>
-              </LegacyCard.Section>
-            )}
-          </LegacyCard>
-        </Layout.Section>
+            <LegacyCard title="On The Way Order Details">
+              {onTheWayRows.length > 0 ? (
+                <DataTable
+                  columnContentTypes={["text", "text"]}
+                  headings={["Order#", "Date & Time"]}
+                  rows={onTheWayRows}
+                />
+              ) : (
+                <LegacyCard.Section>
+                  <Text as="p" tone="subdued">No orders on the way.</Text>
+                </LegacyCard.Section>
+              )}
+            </LegacyCard>
 
-        <Layout.Section>
-          <LegacyCard title="Delivered Order Details">
-            {deliveredRows.length > 0 ? (
-              <DataTable
-                columnContentTypes={["text", "text", "text", "numeric", "text"]}
-                headings={["Order#", "Customer", "Date", "Total", "Financial Status"]}
-                rows={deliveredRows}
-              />
-            ) : (
-              <LegacyCard.Section>
-                <Text as="p" tone="subdued">No delivered orders.</Text>
-              </LegacyCard.Section>
-            )}
-          </LegacyCard>
+            <LegacyCard title="Delivered Order Details">
+              {deliveredRows.length > 0 ? (
+                <DataTable
+                  columnContentTypes={["text", "text"]}
+                  headings={["Order#", "Date & Time"]}
+                  rows={deliveredRows}
+                />
+              ) : (
+                <LegacyCard.Section>
+                  <Text as="p" tone="subdued">No delivered orders.</Text>
+                </LegacyCard.Section>
+              )}
+            </LegacyCard>
+          </InlineGrid>
         </Layout.Section>
       </Layout>
     </Page>
