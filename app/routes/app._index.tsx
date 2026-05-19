@@ -257,7 +257,6 @@ export default function Dashboard() {
   return (
     <Page
       title="Analytics Dashboard"
-      secondaryActions={[{ content: syncFetcher.state !== "idle" ? "Syncing..." : "Sync Latest Orders", onAction: () => syncFetcher.submit({ sync: "latest" }, { method: "post" }) }]}
       primaryAction={
         <Popover
           active={popoverActive}
