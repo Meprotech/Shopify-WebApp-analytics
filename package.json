@@ -9,7 +9,8 @@
     "start": "remix-serve ./build/server/index.js",
     "backfill": "npx tsx --env-file=.env app/lib/backfill.server.ts",
     "deploy": "vercel --prod",
-    "push-deploy": "git push origin main && vercel --prod --yes"
+    "push-deploy": "git push origin main && vercel --prod --yes",
+    "push-code": "git push origin main --force && npx vercel pull --yes --environment production && npx vercel build --prod && npx vercel deploy --prebuilt --prod"
   },
   "dependencies": {
     "@remix-run/node": "2.17.4",
