@@ -27,6 +27,7 @@ export interface ShopifyOrderWebhookPayload {
   fulfillment_status?: string | null;
   customer?: ShopifyWebhookCustomer | null;
   line_items?: ShopifyWebhookLineItem[];
+  tags?: string | null;
 }
 
 function requireEnv(name: string): string {
@@ -113,6 +114,11 @@ export async function upsertWebhookOrder(
   const orderId = payload.admin_graphql_api_id ?? String(payload.id);
   const email = payload.email ?? payload.customer?.email ?? null;
 
+  const rawTags = payload.tags ?? "";
+  const parsedTags = rawTags
+    ? rawTags.split(",").map((t) => t.trim()).filter(Boolean)
+    : [];
+
   const { error } = await supabase.from("store_orders").upsert(
     {
       order_id: orderId,
@@ -124,6 +130,7 @@ export async function upsertWebhookOrder(
       financial_status: payload.financial_status ?? null,
       fulfillment_status: payload.fulfillment_status ?? null,
       items_json: mapLineItems(payload),
+      tags: parsedTags,
       updated_at: now,
     },
     { onConflict: "order_id" },

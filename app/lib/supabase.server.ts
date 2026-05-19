@@ -19,6 +19,7 @@ export type OrderRow = {
   financial_status: string | null;
   fulfillment_status: string | null;
   items_json: Json | null;
+  tags: string[] | null;
   created_at: string;
   updated_at: string;
 };

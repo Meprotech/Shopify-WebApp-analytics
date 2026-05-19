@@ -17,6 +17,7 @@ import {
   Select,
   Text,
   useIndexResourceState,
+  Tag,
 } from "@shopify/polaris";
 import { useState, useCallback, useEffect } from "react";
 
@@ -71,6 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
             displayFinancialStatus
             displayFulfillmentStatus
             customer { firstName lastName }
+            tags
             lineItems(first: 20) {
               nodes {
                 title
@@ -101,6 +103,7 @@ export async function action({ request }: ActionFunctionArgs) {
           productId: li.variant?.product?.id || null,
           productTitle: li.variant?.product?.title || li.title,
         })),
+        tags: order.tags || [],
         updated_at: new Date().toISOString(),
       }, { onConflict: "order_id" });
     }
@@ -386,27 +389,37 @@ export default function Dashboard() {
                       </Popover>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      <Popover
-                        active={activeFulfillmentPopover === order.id}
-                        activator={
-                          <div onClick={() => setActiveFulfillmentPopover(activeFulfillmentPopover === order.id ? null : order.id)} style={{ cursor: 'pointer', display: 'inline-block' }}>
-                            <Badge tone={order.fulfillment_status === 'fulfilled' ? undefined : (order.fulfillment_status === 'partial' ? 'warning' : undefined)} progress={order.fulfillment_status === 'fulfilled' ? 'complete' : (order.fulfillment_status === 'partial' ? 'partiallyComplete' : 'incomplete')}>
-                              {order.fulfillment_status === 'partial' ? 'Partially fulfilled' : (order.fulfillment_status ? order.fulfillment_status.charAt(0).toUpperCase() + order.fulfillment_status.slice(1) : 'Unfulfilled')}
-                            </Badge>
-                          </div>
-                        }
-                        onClose={() => setActiveFulfillmentPopover(null)}
-                      >
-                        <ActionList
-                          actionRole="menuitem"
-                          items={[
-                            { content: 'Unfulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'unfulfilled' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
-                            { content: 'Fulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'fulfilled' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
-                            { content: 'Partially fulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'partial' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
-                            { content: 'Restocked', onAction: () => { submit({ id: order.id, fulfillment_status: 'restocked' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
-                          ]}
-                        />
-                      </Popover>
+                      {(() => {
+                        const normFulfillment = (order.fulfillment_status || 'unfulfilled').toLowerCase().trim();
+                        const isFulfilled = normFulfillment === 'fulfilled';
+                        const isPartial = normFulfillment === 'partial' || normFulfillment === 'partially_fulfilled';
+                        const badgeText = isPartial ? 'Partially fulfilled' : (isFulfilled ? 'Fulfilled' : 'Unfulfilled');
+                        const badgeTone = isFulfilled ? 'success' : (isPartial ? 'warning' : undefined);
+                        const badgeProgress = isFulfilled ? 'complete' : (isPartial ? 'partiallyComplete' : 'incomplete');
+                        return (
+                          <Popover
+                            active={activeFulfillmentPopover === order.id}
+                            activator={
+                              <div onClick={() => setActiveFulfillmentPopover(activeFulfillmentPopover === order.id ? null : order.id)} style={{ cursor: 'pointer', display: 'inline-block' }}>
+                                <Badge tone={badgeTone} progress={badgeProgress}>
+                                  {badgeText}
+                                </Badge>
+                              </div>
+                            }
+                            onClose={() => setActiveFulfillmentPopover(null)}
+                          >
+                            <ActionList
+                              actionRole="menuitem"
+                              items={[
+                                { content: 'Unfulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'unfulfilled' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                                { content: 'Fulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'fulfilled' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                                { content: 'Partially fulfilled', onAction: () => { submit({ id: order.id, fulfillment_status: 'partial' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                                { content: 'Restocked', onAction: () => { submit({ id: order.id, fulfillment_status: 'restocked' }, { method: "post" }); setActiveFulfillmentPopover(null); } },
+                              ]}
+                            />
+                          </Popover>
+                        );
+                      })()}
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       {(() => {
@@ -415,13 +428,37 @@ export default function Dashboard() {
                       })()}
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {/* empty, using original data as requested */}
+                      {(() => {
+                        const normFulfillment = (order.fulfillment_status || 'unfulfilled').toLowerCase().trim();
+                        if (normFulfillment === 'fulfilled') {
+                          return <Badge tone="success">Delivered</Badge>;
+                        } else if (
+                          normFulfillment === 'partial' ||
+                          normFulfillment === 'partially_fulfilled' ||
+                          normFulfillment === 'in_progress' ||
+                          normFulfillment === 'in progress'
+                        ) {
+                          return <Badge tone="warning">On the Way</Badge>;
+                        } else {
+                          return <Badge>Pending</Badge>;
+                        }
+                      })()}
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       Shipping
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                      {/* empty, using original data as requested */}
+                      {(() => {
+                        const tags = Array.isArray(order.tags) ? order.tags : [];
+                        if (tags.length === 0) return <Text as="span" tone="subdued">-</Text>;
+                        return (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {tags.map((tag) => (
+                              <Tag key={tag}>{tag}</Tag>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </IndexTable.Cell>
                   </IndexTable.Row>
                 ))}

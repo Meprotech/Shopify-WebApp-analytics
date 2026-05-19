@@ -119,6 +119,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             financial_status: order.displayFinancialStatus?.toLowerCase() ?? null,
             fulfillment_status: order.displayFulfillmentStatus?.toLowerCase() ?? null,
             items_json: orderItems(order),
+            tags: order.tags || [],
             updated_at: new Date().toISOString(),
           },
           { onConflict: "order_id" }

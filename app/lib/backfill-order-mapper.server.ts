@@ -18,6 +18,7 @@ export interface BackfillOrderNode {
     firstName: string | null;
     lastName: string | null;
   } | null;
+  tags: string[];
   lineItems: {
     nodes: Array<{
       title: string;
@@ -68,6 +69,7 @@ export const ORDERS_BACKFILL_QUERY = `#graphql
           firstName
           lastName
         }
+        tags
         lineItems(first: 50) {
           nodes {
             title
