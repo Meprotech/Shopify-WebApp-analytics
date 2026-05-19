@@ -23,6 +23,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const financialStatus = url.searchParams.get("financial_status") ?? "";
   const fulfillmentStatus = url.searchParams.get("fulfillment_status") ?? "";
+  const shop = url.searchParams.get("shop") ?? "";
   const from = (page - 1) * PAGE_SIZE;
 
   if (!isSupabaseConfigured) {
@@ -33,6 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       fulfillmentStatus,
       totalPages: 1,
       errorMessage: "",
+      shop,
     });
   }
 
@@ -73,6 +75,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     fulfillmentStatus,
     totalPages: Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE)),
     errorMessage: error ? "Orders could not be loaded." : "",
+    shop,
   });
 }
 

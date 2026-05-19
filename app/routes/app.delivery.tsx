@@ -20,9 +20,16 @@ function formatCurrency(value: number | null): string {
   return currencyFormatter.format(value ?? 0);
 }
 
-function getTableRows(ordersList: any[]) {
+function getTableRows(ordersList: any[], shop: string) {
   return ordersList.map((order) => [
-    order.orderNumber ? `#${order.orderNumber}` : order.orderId,
+    <a
+      key={order.orderId}
+      href={`https://${shop}/admin/orders/${order.orderId.split('/').pop()}`}
+      target="_top"
+      style={{ color: "#008060", textDecoration: "underline", fontWeight: "bold" }}
+    >
+      {order.orderNumber ? `#${order.orderNumber}` : order.orderId}
+    </a>,
     order.customer,
     dateFormatter.format(new Date(order.createdAt)),
     formatCurrency(order.totalPrice),
@@ -30,8 +37,10 @@ function getTableRows(ordersList: any[]) {
   ]);
 }
 
-export async function loader(_: LoaderFunctionArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   // Auth is enforced by the parent `app.tsx` loader.
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop") ?? "";
   const orders = await getOrders();
   
   let pendingOrders = 0;
@@ -70,15 +79,15 @@ export async function loader(_: LoaderFunctionArgs) {
     }
   });
 
-  return json({ pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList });
+  return json({ pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList, shop });
 }
 
 export default function DeliveryStatus() {
-  const { pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList } = useLoaderData<typeof loader>();
+  const { pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList, shop } = useLoaderData<typeof loader>();
 
-  const pendingRows = getTableRows(pendingList);
-  const onTheWayRows = getTableRows(onTheWayList);
-  const deliveredRows = getTableRows(deliveredList);
+  const pendingRows = getTableRows(pendingList, shop);
+  const onTheWayRows = getTableRows(onTheWayList, shop);
+  const deliveredRows = getTableRows(deliveredList, shop);
 
   return (
     <Page title="Delivery Status">

@@ -116,6 +116,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
+  const shop = url.searchParams.get("shop") ?? "";
 
   const [kpis, customers, monthlyProfit, orders] = await Promise.all([
     getDashboardKPIs(startDate || undefined, endDate || undefined),
@@ -129,6 +130,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     customers: customers.slice(0, 5),
     monthlyProfit,
     orders,
+    shop,
   });
 }
 
@@ -143,7 +145,7 @@ function formatCurrency(value: number): string {
 }
 
 export default function Dashboard() {
-  const { kpis, customers, orders } = useLoaderData<typeof loader>();
+  const { kpis, customers, orders, shop } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const syncFetcher = useFetcher();
@@ -347,9 +349,13 @@ export default function Dashboard() {
                 {orders.map((order, index) => (
                   <IndexTable.Row id={order.id} key={order.id} position={index}>
                     <IndexTable.Cell>
-                      <Text variant="bodyMd" fontWeight="bold" as="span">
+                      <a
+                        href={`https://${shop}/admin/orders/${order.order_id.split('/').pop()}`}
+                        target="_top"
+                        style={{ color: "#008060", textDecoration: "underline", fontWeight: "bold" }}
+                      >
                         #{order.order_number || order.order_id.split('/').pop()}
-                      </Text>
+                      </a>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
                       {new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(order.created_at))} at {new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric' }).format(new Date(order.created_at)).toLowerCase()}

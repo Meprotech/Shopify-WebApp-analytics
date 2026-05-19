@@ -26,6 +26,7 @@ interface OrdersTableProps {
   financialStatus: string;
   fulfillmentStatus: string;
   errorMessage: string;
+  shop: string;
 }
 
 const financialChoices = ["paid", "pending", "refunded", "voided"].map(
@@ -66,6 +67,7 @@ export function OrdersTable({
   financialStatus,
   fulfillmentStatus,
   errorMessage,
+  shop,
 }: OrdersTableProps) {
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -122,7 +124,14 @@ export function OrdersTable({
       : null,
   ].filter((filter): filter is NonNullable<typeof filter> => filter !== null);
   const rows = orders.map((order) => [
-    order.orderNumber ? `#${order.orderNumber}` : order.orderId,
+    <a
+      key={order.orderId}
+      href={`https://${shop}/admin/orders/${order.orderId.split('/').pop()}`}
+      target="_top"
+      style={{ color: "#008060", textDecoration: "underline", fontWeight: "bold" }}
+    >
+      {order.orderNumber ? `#${order.orderNumber}` : order.orderId}
+    </a>,
     order.customer,
     dateFormatter.format(new Date(order.createdAt)),
     formatCurrency(order.totalPrice),
