@@ -1,7 +1,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { useActionData, useSubmit, useNavigation } from "@remix-run/react";
 import { Page, Card, Button, Banner, Text, BlockStack } from "@shopify/polaris";
-import { authenticate } from "../lib/shopify.server";
+import { authenticate, shopify } from "../lib/shopify.server";
 import { supabase } from "../lib/supabase.server";
 import {
   customerName,
@@ -18,8 +18,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
+  const { session: authSession } = await authenticate.admin(request);
+  const shop = authSession.shop;
   
+  // Prefer offline (long-lived) access token over online (24h) for the backfill
+  const sessions = await shopify.sessionStorage.findSessionsByShop(shop);
+  const targetSession =
+    sessions.find((s) => s.accessToken && !s.isOnline) ??
+    sessions.find((s) => s.accessToken);
+
+  if (!targetSession?.accessToken) {
+    return json({
+      success: false,
+      error: `No valid access token found for shop ${shop}. Found ${sessions.length} sessions.`,
+    });
+  }
+
+  const accessToken = targetSession.accessToken;
+  const API_VERSION = "2024-10";
+
   let cursor: string | null = null;
   let hasNextPage = true;
   let total = 0;
@@ -29,12 +46,31 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     while (hasNextPage) {
-      const response = await admin.graphql(ORDERS_BACKFILL_QUERY, {
-        variables: { cursor },
-      });
-      
-      const payload = await response.json() as { data?: OrdersBackfillResponse; errors?: any[] };
-      
+      const gqlResponse = await fetch(
+        `https://${shop}/admin/api/${API_VERSION}/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": accessToken,
+          },
+          body: JSON.stringify({
+            query: ORDERS_BACKFILL_QUERY,
+            variables: { cursor },
+          }),
+        }
+      );
+
+      if (!gqlResponse.ok) {
+        const text = await gqlResponse.text();
+        return json({
+          success: false,
+          error: `Shopify API error ${gqlResponse.status}: ${text}`,
+        });
+      }
+
+      const payload = (await gqlResponse.json()) as { data?: OrdersBackfillResponse; errors?: any[] };
+
       if (payload.errors?.length) {
         return json({
           success: false,
