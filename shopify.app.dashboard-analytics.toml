@@ -2,7 +2,7 @@
 
 client_id = "fd406591b1a0aacd324bf6b01c0b9a53"
 name = "Dashboard Analytics"
-application_url = "https://dashboard-analytics-mu.vercel.app"
+application_url = "https://shopify-web-app-analytics.vercel.app"
 embedded = true
 
 [build]
@@ -23,4 +23,4 @@ use_legacy_install_flow = false
 optional_scopes = [ ]
 
 [auth]
-redirect_urls = [ "https://dashboard-analytics-mu.vercel.app/auth/callback" ]
+redirect_urls = [ "https://shopify-web-app-analytics.vercel.app/auth/callback" ]
