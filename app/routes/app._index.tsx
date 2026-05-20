@@ -18,6 +18,7 @@ import {
   Text,
   useIndexResourceState,
   Tag,
+  Banner,
 } from "@shopify/polaris";
 import { useState, useCallback, useEffect } from "react";
 
@@ -166,6 +167,14 @@ export default function Dashboard() {
   const submit = useSubmit();
   const syncFetcher = useFetcher();
   const revalidator = useRevalidator();
+  const backfillFetcher = useFetcher<any>();
+  const [showBackfillBanner, setShowBackfillBanner] = useState(false);
+
+  useEffect(() => {
+    if (backfillFetcher.data) {
+      setShowBackfillBanner(true);
+    }
+  }, [backfillFetcher.data]);
   const [activePaymentPopover, setActivePaymentPopover] = useState<string | null>(null);
   const [activeFulfillmentPopover, setActiveFulfillmentPopover] = useState<string | null>(null);
 
@@ -358,9 +367,30 @@ export default function Dashboard() {
           </div>
         </Popover>
       }
+      secondaryActions={[
+        {
+          content: backfillFetcher.state !== "idle" ? "Syncing..." : "Sync Store",
+          loading: backfillFetcher.state !== "idle",
+          onAction: () => {
+            setShowBackfillBanner(false);
+            backfillFetcher.submit(null, { method: "POST", action: "/app/backfill" });
+          },
+        }
+      ]}
     >
       <BlockStack gap="400">
         {isLoading ? <Spinner accessibilityLabel="Loading analytics" /> : null}
+
+        {showBackfillBanner && backfillFetcher.data?.success && (
+          <Banner tone="success" onDismiss={() => setShowBackfillBanner(false)}>
+            ✅ Store sync complete! Total orders checked: {backfillFetcher.data.total} | Inserted: {backfillFetcher.data.inserted} | Updated: {backfillFetcher.data.updated}
+          </Banner>
+        )}
+        {showBackfillBanner && backfillFetcher.data?.success === false && (
+          <Banner tone="critical" title="Sync failed" onDismiss={() => setShowBackfillBanner(false)}>
+            <p>{backfillFetcher.data.error || "An unknown error occurred."}</p>
+          </Banner>
+        )}
 
         <DashboardCards
           totalRevenue={formatCurrency(kpis.totalRevenue)}
