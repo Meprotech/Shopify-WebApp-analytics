@@ -1,4 +1,6 @@
-import { redirect, type LoaderFunctionArgs } from "@remix-run/node";
+import { type LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+import { useEffect } from "react";
 import { authenticate } from "../lib/shopify.server";
 
 const INVENTORY_URL =
@@ -6,9 +8,23 @@ const INVENTORY_URL =
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
-  return redirect(INVENTORY_URL);
+  return { url: INVENTORY_URL };
 }
 
 export default function InventoryRedirect() {
-  return null;
+  const { url } = useLoaderData<typeof loader>();
+
+  useEffect(() => {
+    if (window.top) {
+      window.top.location.href = url;
+    } else {
+      window.location.href = url;
+    }
+  }, [url]);
+
+  return (
+    <p style={{ padding: "2rem", textAlign: "center", fontFamily: "sans-serif" }}>
+      Redirecting to Shopify Inventory...
+    </p>
+  );
 }
