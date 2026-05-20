@@ -21,18 +21,27 @@ export function DashboardHeader() {
     searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined
   );
   const [activeDateRange, setActiveDateRange] = useState<string>("options");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [toastData, setToastData] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [isToastClosing, setIsToastClosing] = useState(false);
 
-  // Auto-dismiss toast after 2 seconds
+  // Auto-dismiss toast after 2 seconds with fade-out animation
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 2000);
+    if (toastData && !isToastClosing) {
+      const timer = setTimeout(() => {
+        setIsToastClosing(true);
+        // Remove from DOM after fade-out animation completes
+        setTimeout(() => {
+          setToastData(null);
+          setIsToastClosing(false);
+        }, 300);
+      }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [toast]);
+  }, [toastData, isToastClosing]);
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
-    setToast({ message, type });
+    setIsToastClosing(false);
+    setToastData({ message, type });
   }, []);
 
   const togglePopoverActive = useCallback(() => {
@@ -201,30 +210,30 @@ export function DashboardHeader() {
       </div>
 
       {/* Sync Toast Notification */}
-      {toast && (
+      {toastData && (
         <div
           style={{
             position: "fixed",
             top: "16px",
             left: "50%",
-            transform: "translateX(-50%)",
+            transform: isToastClosing ? "translateX(-50%) translateY(-10px)" : "translateX(-50%)",
             zIndex: 9999,
             padding: "12px 24px",
             borderRadius: "8px",
             fontSize: "14px",
             fontWeight: 500,
             color: "#fff",
-            background: toast.type === "success"
+            background: toastData.type === "success"
               ? "#2e7d32"
-              : toast.type === "error"
+              : toastData.type === "error"
                 ? "#d32f2f"
                 : "#1565c0",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            animation: "toastFadeIn 0.3s ease-out",
+            animation: isToastClosing ? "toastFadeOut 0.3s ease-in forwards" : "toastFadeIn 0.3s ease-out",
             fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           }}
         >
-          {toast.message}
+          {toastData.message}
         </div>
       )}
 
@@ -233,6 +242,10 @@ export function DashboardHeader() {
         @keyframes toastFadeIn {
           from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
           to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes toastFadeOut {
+          from { opacity: 1; transform: translateX(-50%) translateY(0); }
+          to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
         }
       `}</style>
     </div>
