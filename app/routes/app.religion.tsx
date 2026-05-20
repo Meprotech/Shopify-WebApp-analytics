@@ -11,6 +11,12 @@ interface CityStateData {
   orderCount: number;
 }
 
+interface CountryData {
+  country: string;
+  totalRevenue: number;
+  orderCount: number;
+}
+
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -47,6 +53,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!session.accessToken) {
     return json({
       data: [] as CityStateData[],
+      countryData: [] as CountryData[],
       shop,
       error: "No access token available.",
     });
@@ -62,6 +69,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const maxOrders = 500;
 
   const cityStateMap = new Map<string, { city: string; province: string; totalRevenue: number; orderCount: number }>();
+  const countryMap = new Map<string, { country: string; totalRevenue: number; orderCount: number }>();
 
   try {
     while (hasNextPage && totalOrdersFetched < maxOrders) {
@@ -83,6 +91,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       if (!gqlResponse.ok) {
         return json({
           data: [] as CityStateData[],
+          countryData: [] as CountryData[],
           shop,
           error: `Shopify API error ${gqlResponse.status}`,
         });
@@ -94,6 +103,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       if (!data || payload.errors) {
         return json({
           data: [] as CityStateData[],
+          countryData: [] as CountryData[],
           shop,
           error: payload.errors?.[0]?.message || "No data returned",
         });
@@ -101,6 +111,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       for (const order of data.orders.nodes) {
         const address = order.shippingAddress;
+        const revenue = parseFloat(order.totalPriceSet?.shopMoney?.amount || "0");
+
+        // Aggregate by city + state
         if (address?.city && address?.province) {
           const key = `${address.city}|${address.province}`;
           const existing = cityStateMap.get(key) || {
@@ -109,9 +122,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
             totalRevenue: 0,
             orderCount: 0,
           };
-          existing.totalRevenue += parseFloat(order.totalPriceSet?.shopMoney?.amount || "0");
+          existing.totalRevenue += revenue;
           existing.orderCount += 1;
           cityStateMap.set(key, existing);
+        }
+
+        // Aggregate by country
+        if (address?.country) {
+          const existing = countryMap.get(address.country) || {
+            country: address.country,
+            totalRevenue: 0,
+            orderCount: 0,
+          };
+          existing.totalRevenue += revenue;
+          existing.orderCount += 1;
+          countryMap.set(address.country, existing);
         }
       }
 
@@ -122,16 +147,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const data = Array.from(cityStateMap.values())
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
+    const countryData = Array.from(countryMap.values())
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-    return json({ data, shop, error: null });
+    return json({ data, countryData, shop, error: null });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return json({ data: [] as CityStateData[], shop, error: message });
+    return json({ data: [] as CityStateData[], countryData: [] as CountryData[], shop, error: message });
   }
 }
 
 export default function ReligionPage() {
-  const { data, shop, error } = useLoaderData<typeof loader>();
+  const { data, countryData, shop, error } = useLoaderData<typeof loader>();
   const revalidator = useRevalidator();
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
@@ -178,6 +205,7 @@ export default function ReligionPage() {
   }, [lastUpdated, revalidator]);
 
   const totalRevenue = data.reduce((sum, d) => sum + d.totalRevenue, 0);
+  const countryTotalRevenue = countryData.reduce((sum, d) => sum + d.totalRevenue, 0);
 
   const tableRows = data.map((item) => [
     item.city,
@@ -185,6 +213,13 @@ export default function ReligionPage() {
     item.orderCount,
     currencyFormatter.format(item.totalRevenue),
     `${((item.totalRevenue / (totalRevenue || 1)) * 100).toFixed(1)}%`,
+  ]);
+
+  const countryTableRows = countryData.map((item) => [
+    item.country,
+    item.orderCount,
+    currencyFormatter.format(item.totalRevenue),
+    `${((item.totalRevenue / (countryTotalRevenue || 1)) * 100).toFixed(1)}%`,
   ]);
 
   return (
@@ -216,8 +251,36 @@ export default function ReligionPage() {
               )}
             </LegacyCard>
 
+            {/* Country Distribution Card */}
+            <LegacyCard title="Purchase Distribution by Country">
+              {countryData.length > 0 ? (
+                <DataTable
+                  columnContentTypes={["text", "numeric", "numeric", "numeric"]}
+                  headings={["Country", "Orders", "Revenue", "% of Total"]}
+                  rows={countryTableRows}
+                  totals={["", countryData.reduce((s, d) => s + d.orderCount, 0), currencyFormatter.format(countryTotalRevenue), "100%"]}
+                />
+              ) : (
+                <LegacyCard.Section>
+                  <Text as="p" tone="subdued">
+                    No country data available yet.
+                  </Text>
+                </LegacyCard.Section>
+              )}
+            </LegacyCard>
+
             {/* Summary Cards */}
             <Layout>
+              <Layout.Section variant="oneThird">
+                <LegacyCard sectioned>
+                  <BlockStack gap="200">
+                    <Text as="p" tone="subdued" fontWeight="medium">Total Countries</Text>
+                    <Text as="p" variant="heading3xl">
+                      {countryData.length}
+                    </Text>
+                  </BlockStack>
+                </LegacyCard>
+              </Layout.Section>
               <Layout.Section variant="oneThird">
                 <LegacyCard sectioned>
                   <BlockStack gap="200">
@@ -234,16 +297,6 @@ export default function ReligionPage() {
                     <Text as="p" tone="subdued" fontWeight="medium">Total States</Text>
                     <Text as="p" variant="heading3xl">
                       {new Set(data.map((d) => d.province)).size}
-                    </Text>
-                  </BlockStack>
-                </LegacyCard>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <LegacyCard sectioned>
-                  <BlockStack gap="200">
-                    <Text as="p" tone="subdued" fontWeight="medium">Total Orders</Text>
-                    <Text as="p" variant="heading3xl">
-                      {data.reduce((s, d) => s + d.orderCount, 0)}
                     </Text>
                   </BlockStack>
                 </LegacyCard>
