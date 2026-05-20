@@ -22,7 +22,7 @@ export default function EmbeddedAppLayout() {
     <>
       <div style={{
         display: "flex",
-        justifyContent: "flex-end",
+        justifyContent: "flex-start",
         padding: "16px 20px 0 20px",
         gap: "12px",
       }}>
