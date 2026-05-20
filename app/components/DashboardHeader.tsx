@@ -21,45 +21,18 @@ export function DashboardHeader() {
     searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined
   );
   const [activeDateRange, setActiveDateRange] = useState<string>("options");
-  const [toastData, setToastData] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
-  const [isToastClosing, setIsToastClosing] = useState(false);
-
-  // Auto-dismiss toast after 2 seconds with fade-out animation
-  useEffect(() => {
-    if (toastData && !isToastClosing) {
-      const timer = setTimeout(() => {
-        setIsToastClosing(true);
-        // Remove from DOM after fade-out animation completes
-        setTimeout(() => {
-          setToastData(null);
-          setIsToastClosing(false);
-        }, 300);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastData, isToastClosing]);
-
-  const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
-    setIsToastClosing(false);
-    setToastData({ message, type });
-  }, []);
 
   const togglePopoverActive = useCallback(() => {
     setPopoverActive((active) => !active);
     if (!popoverActive) setActiveDateRange("options");
   }, [popoverActive]);
 
-  // Show toast and auto-refresh page data after successful sync
+  // Auto-refresh page data after successful sync
   useEffect(() => {
-    if (syncFetcher.data) {
-      if (syncFetcher.data.success) {
-        showToast(`Sync complete! ${syncFetcher.data.inserted} inserted, ${syncFetcher.data.updated} updated`, "success");
-        revalidator.revalidate();
-      } else {
-        showToast(syncFetcher.data.error || "Sync failed", "error");
-      }
+    if (syncFetcher.data?.success) {
+      revalidator.revalidate();
     }
-  }, [syncFetcher.data, revalidator, showToast]);
+  }, [syncFetcher.data, revalidator]);
 
   const handleRangeSelect = useCallback((range: string) => {
     if (range === "custom") {
@@ -127,9 +100,8 @@ export function DashboardHeader() {
   const isSyncing = syncFetcher.state !== "idle";
 
   const handleSync = useCallback(() => {
-    showToast("Syncing store data...", "info");
     syncFetcher.submit(null, { method: "POST", action: "/app/backfill" });
-  }, [syncFetcher, showToast]);
+  }, [syncFetcher]);
 
   return (
     <div>
@@ -208,46 +180,6 @@ export function DashboardHeader() {
           </div>
         </Popover>
       </div>
-
-      {/* Sync Toast Notification */}
-      {toastData && (
-        <div
-          style={{
-            position: "fixed",
-            top: "16px",
-            left: "50%",
-            transform: isToastClosing ? "translateX(-50%) translateY(-10px)" : "translateX(-50%)",
-            zIndex: 9999,
-            padding: "12px 24px",
-            borderRadius: "8px",
-            fontSize: "14px",
-            fontWeight: 500,
-            color: "#fff",
-            background: toastData.type === "success"
-              ? "#2e7d32"
-              : toastData.type === "error"
-                ? "#d32f2f"
-                : "#1565c0",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            animation: isToastClosing ? "toastFadeOut 0.3s ease-in forwards" : "toastFadeIn 0.3s ease-out",
-            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          }}
-        >
-          {toastData.message}
-        </div>
-      )}
-
-      {/* Toast animation keyframes */}
-      <style>{`
-        @keyframes toastFadeIn {
-          from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-        @keyframes toastFadeOut {
-          from { opacity: 1; transform: translateX(-50%) translateY(0); }
-          to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-        }
-      `}</style>
     </div>
   );
 }
