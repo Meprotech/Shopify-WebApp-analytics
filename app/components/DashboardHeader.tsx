@@ -114,7 +114,7 @@ export function DashboardHeader() {
       <div style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "flex-end",
+        justifyContent: "flex-start",
         gap: "12px",
         flexWrap: "wrap",
         width: "100%",
