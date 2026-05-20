@@ -53,6 +53,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   }
 
+  // Parse date filters from query parameters
+  const url = new URL(request.url);
+  const startDateStr = url.searchParams.get("startDate");
+  const endDateStr = url.searchParams.get("endDate");
+
+  const startDate = startDateStr ? new Date(startDateStr) : null;
+  const endDate = endDateStr ? new Date(endDateStr) : null;
+  if (endDate) {
+    endDate.setHours(23, 59, 59, 999);
+  }
+
   const accessToken = session.accessToken;
   const API_VERSION = "2024-10";
 
@@ -100,7 +111,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
         });
       }
 
+      let reachedStartDate = false;
       for (const order of data.orders.nodes) {
+        const orderDate = new Date(order.createdAt);
+
+        // Apply date filter
+        if (startDate && orderDate < startDate) {
+          reachedStartDate = true;
+          break; // Stop processing since orders are sorted newest to oldest
+        }
+        if (endDate && orderDate > endDate) {
+          continue; // Skip order if after the endDate range
+        }
+
         const address = order.shippingAddress;
         const revenue = parseFloat(order.totalPriceSet?.shopMoney?.amount || "0");
 
@@ -117,6 +140,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
           existing.orderCount += 1;
           cityStateMap.set(key, existing);
         }
+      }
+
+      if (reachedStartDate) {
+        break;
       }
 
       totalOrdersFetched += data.orders.nodes.length;
