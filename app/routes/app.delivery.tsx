@@ -34,10 +34,12 @@ function getTableRows(ordersList: any[], shop: string) {
 export async function loader({ request }: LoaderFunctionArgs) {
   // Auth is enforced by the parent `app.tsx` loader.
   const url = new URL(request.url);
+  const startDate = url.searchParams.get("startDate") ?? undefined;
+  const endDate = url.searchParams.get("endDate") ?? undefined;
   const shop = url.searchParams.get("shop") ?? "";
 
   const [orders, latestOrderResult, dbCountResult] = await Promise.all([
-    getOrders(),
+    getOrders(startDate, endDate),
     supabase
       .from("store_orders")
       .select("updated_at")

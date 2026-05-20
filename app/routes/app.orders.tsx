@@ -21,6 +21,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Auth is enforced by the parent `app.tsx` loader. See app._index.tsx for context.
   const url = new URL(request.url);
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
+  const startDate = url.searchParams.get("startDate");
+  const endDate = url.searchParams.get("endDate");
   const financialStatus = url.searchParams.get("financial_status") ?? "";
   const fulfillmentStatus = url.searchParams.get("fulfillment_status") ?? "";
   const shop = url.searchParams.get("shop") ?? "";
@@ -45,6 +47,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, from + PAGE_SIZE - 1);
+
+  if (startDate) {
+    query = query.gte("created_at", `${startDate}T00:00:00.000Z`);
+  }
+  if (endDate) {
+    query = query.lte("created_at", `${endDate}T23:59:59.999Z`);
+  }
 
   if (financialStatus) {
     query = query.eq("financial_status", financialStatus);

@@ -1,26 +1,21 @@
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useNavigation, useSearchParams, useSubmit, useFetcher, useRevalidator } from "@remix-run/react";
-import { Link } from "@remix-run/react";
+import { useLoaderData, useNavigation, useSubmit, useRevalidator } from "@remix-run/react";
 import {
   BlockStack,
   Button,
   Layout,
   LegacyCard,
-  List,
   Page,
   Spinner,
   ActionList,
   Popover,
-  TextField,
   IndexTable,
   Badge,
-  Select,
   Text,
   useIndexResourceState,
   Tag,
-  Banner,
 } from "@shopify/polaris";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 import customStyles from "../styles/custom.css?url";
 
@@ -56,57 +51,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (Object.keys(updates).length > 0) {
       await updateOrderStatus(id, updates);
-    }
-  }
-
-  if (formData.get("sync") === "latest") {
-    const response = await admin.graphql(`
-      query GetLatestOrders {
-        orders(first: 50, sortKey: CREATED_AT, reverse: true) {
-          nodes {
-            id
-            name
-            createdAt
-            totalPriceSet { shopMoney { amount currencyCode } }
-            subtotalPriceSet { shopMoney { amount } }
-            email
-            displayFinancialStatus
-            displayFulfillmentStatus
-            customer { firstName lastName }
-            tags
-            lineItems(first: 20) {
-              nodes {
-                title
-                quantity
-                variant { price product { id title } }
-              }
-            }
-          }
-        }
-      }
-    `);
-    const data: any = await response.json();
-    const orders = data.data?.orders?.nodes || [];
-    for (const order of orders) {
-      await supabase.from("store_orders").upsert({
-        order_id: order.id,
-        order_number: parseInt(order.name.replace(/\D/g, "")) || null,
-        total_price: parseFloat(order.totalPriceSet?.shopMoney?.amount || "0"),
-        subtotal_price: parseFloat(order.subtotalPriceSet?.shopMoney?.amount || "0"),
-        customer_email: order.email,
-        customer_name: [order.customer?.firstName, order.customer?.lastName].filter(Boolean).join(" ") || null,
-        financial_status: order.displayFinancialStatus?.toLowerCase() || null,
-        fulfillment_status: order.displayFulfillmentStatus?.toLowerCase() || null,
-        items_json: order.lineItems.nodes.map((li: any) => ({
-          title: li.title,
-          quantity: li.quantity,
-          variantPrice: parseFloat(li.variant?.price || "0"),
-          productId: li.variant?.product?.id || null,
-          productTitle: li.variant?.product?.title || li.title,
-        })),
-        tags: order.tags || [],
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "order_id" });
     }
   }
 
@@ -165,43 +109,12 @@ export default function Dashboard() {
   const { kpis, customers, orders, shop, lastUpdated, totalCount } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
-  const syncFetcher = useFetcher();
   const revalidator = useRevalidator();
-  const backfillFetcher = useFetcher<any>();
-  const [showBackfillBanner, setShowBackfillBanner] = useState(false);
-
-  useEffect(() => {
-    if (backfillFetcher.data) {
-      setShowBackfillBanner(true);
-    }
-  }, [backfillFetcher.data]);
   const [activePaymentPopover, setActivePaymentPopover] = useState<string | null>(null);
   const [activeFulfillmentPopover, setActiveFulfillmentPopover] = useState<string | null>(null);
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(orders);
   const isLoading = navigation.state !== "idle";
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const [popoverActive, setPopoverActive] = useState(false);
-  const [startDate, setStartDate] = useState<Date | undefined>(
-    searchParams.get("startDate") ? new Date(searchParams.get("startDate")!) : undefined
-  );
-  const [endDate, setEndDate] = useState<Date | undefined>(
-    searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined
-  );
-  const [activeDateRange, setActiveDateRange] = useState<string>("options");
-
-  const togglePopoverActive = useCallback(() => {
-    setPopoverActive((active) => !active);
-    if (!popoverActive) setActiveDateRange("options");
-  }, [popoverActive]);
-
-  // Auto-refresh dashboard (left side orders/KPIs) after successful sync
-  useEffect(() => {
-    if (syncFetcher.state === "idle" && syncFetcher.data?.success) {
-      revalidator.revalidate();
-    }
-  }, [syncFetcher.state, syncFetcher.data, revalidator]);
 
   // Track database states to detect when an actual change happens
   const [localLastUpdated, setLocalLastUpdated] = useState(lastUpdated);
@@ -243,154 +156,10 @@ export default function Dashboard() {
     };
   }, [localLastUpdated, localTotalCount, revalidator]);
 
-  const handleRangeSelect = useCallback((range: string) => {
-    if (range === "custom") {
-      setActiveDateRange("custom");
-      return;
-    }
-
-    const today = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    if (range === "today") {
-      start = today;
-    } else if (range === "yesterday") {
-      start = new Date(today);
-      start.setDate(today.getDate() - 1);
-      end = new Date(today);
-      end.setDate(today.getDate() - 1);
-    } else if (range === "last7") {
-      start = new Date(today);
-      start.setDate(today.getDate() - 6);
-    } else if (range === "last30") {
-      start = new Date(today);
-      start.setDate(today.getDate() - 29);
-    } else if (range === "thisMonth") {
-      start = new Date(today.getFullYear(), today.getMonth(), 1);
-    }
-
-    setStartDate(start);
-    setEndDate(end);
-    
-    const params = new URLSearchParams(searchParams);
-    params.set("startDate", start.toISOString().split('T')[0]);
-    params.set("endDate", end.toISOString().split('T')[0]);
-    setSearchParams(params);
-    setPopoverActive(false);
-  }, [searchParams, setSearchParams]);
-
-  const applyFilter = useCallback(() => {
-    const params = new URLSearchParams(searchParams);
-    if (startDate) {
-      params.set("startDate", startDate.toISOString().split('T')[0]);
-    } else {
-      params.delete("startDate");
-    }
-    if (endDate) {
-      params.set("endDate", endDate.toISOString().split('T')[0]);
-    } else {
-      params.delete("endDate");
-    }
-    setSearchParams(params);
-    setPopoverActive(false);
-  }, [startDate, endDate, searchParams, setSearchParams]);
-
-  const clearFilter = useCallback(() => {
-    setStartDate(undefined);
-    setEndDate(undefined);
-    const params = new URLSearchParams(searchParams);
-    params.delete("startDate");
-    params.delete("endDate");
-    setSearchParams(params);
-    setPopoverActive(false);
-  }, [searchParams, setSearchParams]);
-
   return (
-    <Page
-      title="Analytics Dashboard"
-      primaryAction={
-        <Popover
-          active={popoverActive}
-          activator={
-            <Button onClick={togglePopoverActive} variant="primary">
-              {startDate || endDate ? "Edit Date Filter" : "Filter by Date"}
-            </Button>
-          }
-          onClose={togglePopoverActive}
-        >
-          <div style={{ minWidth: "250px" }}>
-            {activeDateRange === "options" ? (
-              <ActionList
-                actionRole="menuitem"
-                items={[
-                  { content: 'Custom', onAction: () => handleRangeSelect('custom') },
-                  { content: 'Today', onAction: () => handleRangeSelect('today') },
-                  { content: 'Yesterday', onAction: () => handleRangeSelect('yesterday') },
-                  { content: 'Last 7 days', onAction: () => handleRangeSelect('last7') },
-                  { content: 'Last 30 days', onAction: () => handleRangeSelect('last30') },
-                  { content: 'This month', onAction: () => handleRangeSelect('thisMonth') },
-                  { content: 'Clear', onAction: clearFilter, destructive: true },
-                ]}
-              />
-            ) : (
-              <div style={{ padding: "16px" }}>
-                <BlockStack gap="400">
-                  <TextField
-                    label="Start Date"
-                    type="date"
-                    autoComplete="off"
-                    value={startDate ? startDate.toISOString().split('T')[0] : ""}
-                    onChange={(value) => setStartDate(value ? new Date(value) : undefined)}
-                  />
-                  <TextField
-                    label="End Date"
-                    type="date"
-                    autoComplete="off"
-                    value={endDate ? endDate.toISOString().split('T')[0] : ""}
-                    onChange={(value) => setEndDate(value ? new Date(value) : undefined)}
-                  />
-                  <BlockStack gap="200">
-                    <Button onClick={applyFilter} variant="primary" fullWidth>
-                      Apply Filter
-                    </Button>
-                    <Button onClick={() => setActiveDateRange("options")} fullWidth>
-                      Back to Presets
-                    </Button>
-                    <Button onClick={clearFilter} fullWidth>
-                      Clear Filter
-                    </Button>
-                  </BlockStack>
-                </BlockStack>
-              </div>
-            )}
-          </div>
-        </Popover>
-      }
-      secondaryActions={[
-        {
-          content: backfillFetcher.state !== "idle" ? "Syncing..." : "Sync Store",
-          loading: backfillFetcher.state !== "idle",
-          onAction: () => {
-            setShowBackfillBanner(false);
-            backfillFetcher.submit(null, { method: "POST", action: "/app/backfill" });
-          },
-        }
-      ]}
-    >
+    <Page title="Analytics Dashboard">
       <BlockStack gap="400">
         {isLoading ? <Spinner accessibilityLabel="Loading analytics" /> : null}
-
-        {showBackfillBanner && backfillFetcher.data?.success && (
-          <Banner tone="success" onDismiss={() => setShowBackfillBanner(false)}>
-            ✅ Store sync complete! Total orders checked: {backfillFetcher.data.total} | Inserted: {backfillFetcher.data.inserted} | Updated: {backfillFetcher.data.updated}
-          </Banner>
-        )}
-        {showBackfillBanner && backfillFetcher.data?.success === false && (
-          <Banner tone="critical" title="Sync failed" onDismiss={() => setShowBackfillBanner(false)}>
-            <p>{backfillFetcher.data.error || "An unknown error occurred."}</p>
-          </Banner>
-        )}
 
         <DashboardCards
           totalRevenue={formatCurrency(kpis.totalRevenue)}
