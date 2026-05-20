@@ -193,7 +193,7 @@ export default function ReligionPage() {
   ]);
 
   return (
-    <Page title="Geography & Religion">
+    <Page title="Geography & region">
       <Layout>
         <Layout.Section>
           <BlockStack gap="400">

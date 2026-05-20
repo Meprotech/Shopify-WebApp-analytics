@@ -75,7 +75,7 @@ export default function App() {
             <a href="/app" rel="home">Dashboard</a>
             <a href="/app/delivery">Delivery</a>
             <a href="/app/inventory">Inventory</a>
-            <a href="/app/religion">Religion</a>
+            <a href="/app/religion">Region</a>
           </NavMenu>
           <GlobalLoading />
           <Outlet />
