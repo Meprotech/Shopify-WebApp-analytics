@@ -121,12 +121,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const endDate = url.searchParams.get("endDate");
   const shop = url.searchParams.get("shop") ?? "";
 
-  const [kpis, customers, monthlyProfit, orders] = await Promise.all([
+  const [kpis, customers, monthlyProfit, orders, latestOrderData, totalOrdersCount] = await Promise.all([
     getDashboardKPIs(startDate || undefined, endDate || undefined),
     getCustomerLifetimeValue(startDate || undefined, endDate || undefined),
     getNetProfitByMonth(startDate || undefined, endDate || undefined),
     getOrders(startDate || undefined, endDate || undefined),
+    supabase
+      .from("store_orders")
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("store_orders")
+      .select("*", { count: "exact", head: true }),
   ]);
+
+  const lastUpdated = latestOrderData.data?.[0]?.updated_at ?? null;
+  const totalCount = totalOrdersCount.count ?? 0;
 
   return json({
     kpis,
@@ -134,6 +145,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     monthlyProfit,
     orders,
     shop,
+    lastUpdated,
+    totalCount,
   });
 }
 
@@ -148,7 +161,7 @@ function formatCurrency(value: number): string {
 }
 
 export default function Dashboard() {
-  const { kpis, customers, orders, shop } = useLoaderData<typeof loader>();
+  const { kpis, customers, orders, shop, lastUpdated, totalCount } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const syncFetcher = useFetcher();
@@ -181,15 +194,45 @@ export default function Dashboard() {
     }
   }, [syncFetcher.state, syncFetcher.data, revalidator]);
 
-  // Live polling: pick up webhook-driven changes without manual refresh
+  // Track database states to detect when an actual change happens
+  const [localLastUpdated, setLocalLastUpdated] = useState(lastUpdated);
+  const [localTotalCount, setLocalTotalCount] = useState(totalCount);
+
   useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        revalidator.revalidate();
+    setLocalLastUpdated(lastUpdated);
+    setLocalTotalCount(totalCount);
+  }, [lastUpdated, totalCount]);
+
+  // Fast smart-polling: check for updates every 3 seconds, only revalidate if something changed
+  useEffect(() => {
+    let active = true;
+
+    const checkUpdates = async () => {
+      if (document.visibilityState !== "visible") return;
+
+      try {
+        const response = await fetch("/api/last-updated");
+        if (!active) return;
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (
+          data.timestamp !== localLastUpdated ||
+          data.count !== localTotalCount
+        ) {
+          revalidator.revalidate();
+        }
+      } catch (err) {
+        console.error("Failed to check for updates:", err);
       }
-    }, 15000);
-    return () => clearInterval(id);
-  }, [revalidator]);
+    };
+
+    const intervalId = setInterval(checkUpdates, 3000);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [localLastUpdated, localTotalCount, revalidator]);
 
   const handleRangeSelect = useCallback((range: string) => {
     if (range === "custom") {

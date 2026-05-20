@@ -6,7 +6,7 @@ import {
 } from "@remix-run/node";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
 import { Page } from "@shopify/polaris";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
   OrdersTable,
@@ -35,6 +35,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       totalPages: 1,
       errorMessage: "",
       shop,
+      lastUpdated: null,
+      totalOrdersCount: 0,
     });
   }
 
@@ -52,7 +54,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
     query = query.eq("fulfillment_status", fulfillmentStatus);
   }
 
-  const { data, error, count } = await query;
+  const [mainQueryResult, latestOrderResult, dbCountResult] = await Promise.all([
+    query,
+    supabase
+      .from("store_orders")
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("store_orders")
+      .select("*", { count: "exact", head: true }),
+  ]);
+
+  const { data, error, count } = mainQueryResult;
+  const lastUpdated = latestOrderResult.data?.[0]?.updated_at ?? null;
+  const totalOrdersCount = dbCountResult.count ?? 0;
 
   if (error) {
     console.error("Failed to load orders table", error);
@@ -76,6 +92,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     totalPages: Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE)),
     errorMessage: error ? "Orders could not be loaded." : "",
     shop,
+    lastUpdated,
+    totalOrdersCount,
   });
 }
 
@@ -100,16 +118,48 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function OrdersTablePage() {
   const data = useLoaderData<typeof loader>();
+  const { lastUpdated, totalOrdersCount } = data;
   const revalidator = useRevalidator();
 
+  // Track database states to detect when an actual change happens
+  const [localLastUpdated, setLocalLastUpdated] = useState(lastUpdated);
+  const [localTotalCount, setLocalTotalCount] = useState(totalOrdersCount);
+
   useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        revalidator.revalidate();
+    setLocalLastUpdated(lastUpdated);
+    setLocalTotalCount(totalOrdersCount);
+  }, [lastUpdated, totalOrdersCount]);
+
+  // Fast smart-polling: check for updates every 3 seconds, only revalidate if something changed
+  useEffect(() => {
+    let active = true;
+
+    const checkUpdates = async () => {
+      if (document.visibilityState !== "visible") return;
+
+      try {
+        const response = await fetch("/api/last-updated");
+        if (!active) return;
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (
+          data.timestamp !== localLastUpdated ||
+          data.count !== localTotalCount
+        ) {
+          revalidator.revalidate();
+        }
+      } catch (err) {
+        console.error("Failed to check for updates:", err);
       }
-    }, 15000);
-    return () => clearInterval(id);
-  }, [revalidator]);
+    };
+
+    const intervalId = setInterval(checkUpdates, 3000);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [localLastUpdated, localTotalCount, revalidator]);
 
   return (
     <Page title="Orders">

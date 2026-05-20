@@ -1,8 +1,10 @@
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
 import { getOrders } from "../lib/analytics.server";
 import { Page, Layout, LegacyCard, InlineGrid, BlockStack, Text, DataTable } from "@shopify/polaris";
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase.server";
 
 import customStyles from "../styles/custom.css?url";
 
@@ -33,7 +35,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Auth is enforced by the parent `app.tsx` loader.
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop") ?? "";
-  const orders = await getOrders();
+
+  const [orders, latestOrderResult, dbCountResult] = await Promise.all([
+    getOrders(),
+    supabase
+      .from("store_orders")
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("store_orders")
+      .select("*", { count: "exact", head: true }),
+  ]);
+
+  const lastUpdated = latestOrderResult.data?.[0]?.updated_at ?? null;
+  const totalOrdersCount = dbCountResult.count ?? 0;
   
   let pendingOrders = 0;
   let onTheWay = 0;
@@ -71,11 +87,62 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   });
 
-  return json({ pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList, shop });
+  return json({
+    pendingOrders,
+    onTheWay,
+    delivered,
+    pendingList,
+    onTheWayList,
+    deliveredList,
+    shop,
+    lastUpdated,
+    totalOrdersCount,
+  });
 }
 
 export default function DeliveryStatus() {
-  const { pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList, shop } = useLoaderData<typeof loader>();
+  const { pendingOrders, onTheWay, delivered, pendingList, onTheWayList, deliveredList, shop, lastUpdated, totalOrdersCount } = useLoaderData<typeof loader>();
+  const revalidator = useRevalidator();
+
+  // Track database states to detect when an actual change happens
+  const [localLastUpdated, setLocalLastUpdated] = useState(lastUpdated);
+  const [localTotalCount, setLocalTotalCount] = useState(totalOrdersCount);
+
+  useEffect(() => {
+    setLocalLastUpdated(lastUpdated);
+    setLocalTotalCount(totalOrdersCount);
+  }, [lastUpdated, totalOrdersCount]);
+
+  // Fast smart-polling: check for updates every 3 seconds, only revalidate if something changed
+  useEffect(() => {
+    let active = true;
+
+    const checkUpdates = async () => {
+      if (document.visibilityState !== "visible") return;
+
+      try {
+        const response = await fetch("/api/last-updated");
+        if (!active) return;
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (
+          data.timestamp !== localLastUpdated ||
+          data.count !== localTotalCount
+        ) {
+          revalidator.revalidate();
+        }
+      } catch (err) {
+        console.error("Failed to check for updates:", err);
+      }
+    };
+
+    const intervalId = setInterval(checkUpdates, 3000);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [localLastUpdated, localTotalCount, revalidator]);
 
   const pendingRows = getTableRows(pendingList, shop);
   const onTheWayRows = getTableRows(onTheWayList, shop);
