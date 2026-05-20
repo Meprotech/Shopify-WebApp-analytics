@@ -6,7 +6,6 @@ import {
   Button,
   Popover,
   TextField,
-  Banner,
 } from "@shopify/polaris";
 
 export function DashboardHeader() {
@@ -22,22 +21,36 @@ export function DashboardHeader() {
     searchParams.get("endDate") ? new Date(searchParams.get("endDate")!) : undefined
   );
   const [activeDateRange, setActiveDateRange] = useState<string>("options");
-  const [showBanner, setShowBanner] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+
+  // Auto-dismiss toast after 2 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
+    setToast({ message, type });
+  }, []);
 
   const togglePopoverActive = useCallback(() => {
     setPopoverActive((active) => !active);
     if (!popoverActive) setActiveDateRange("options");
   }, [popoverActive]);
 
-  // Show banner and auto-refresh page data after successful sync
+  // Show toast and auto-refresh page data after successful sync
   useEffect(() => {
     if (syncFetcher.data) {
-      setShowBanner(true);
       if (syncFetcher.data.success) {
+        showToast(`Sync complete! ${syncFetcher.data.inserted} inserted, ${syncFetcher.data.updated} updated`, "success");
         revalidator.revalidate();
+      } else {
+        showToast(syncFetcher.data.error || "Sync failed", "error");
       }
     }
-  }, [syncFetcher.data, revalidator]);
+  }, [syncFetcher.data, revalidator, showToast]);
 
   const handleRangeSelect = useCallback((range: string) => {
     if (range === "custom") {
@@ -105,9 +118,9 @@ export function DashboardHeader() {
   const isSyncing = syncFetcher.state !== "idle";
 
   const handleSync = useCallback(() => {
-    setShowBanner(false);
+    showToast("Syncing store data...", "info");
     syncFetcher.submit(null, { method: "POST", action: "/app/backfill" });
-  }, [syncFetcher]);
+  }, [syncFetcher, showToast]);
 
   return (
     <div>
@@ -187,21 +200,41 @@ export function DashboardHeader() {
         </Popover>
       </div>
 
-      {/* Sync Result Banner */}
-      {showBanner && syncFetcher.data?.success && (
-        <div style={{ marginTop: "12px" }}>
-          <Banner tone="success" onDismiss={() => setShowBanner(false)}>
-            Store sync complete! Total orders checked: {syncFetcher.data.total} | Inserted: {syncFetcher.data.inserted} | Updated: {syncFetcher.data.updated}
-          </Banner>
+      {/* Sync Toast Notification */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            top: "16px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            padding: "12px 24px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: 500,
+            color: "#fff",
+            background: toast.type === "success"
+              ? "#2e7d32"
+              : toast.type === "error"
+                ? "#d32f2f"
+                : "#1565c0",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            animation: "toastFadeIn 0.3s ease-out",
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          }}
+        >
+          {toast.message}
         </div>
       )}
-      {showBanner && syncFetcher.data?.success === false && (
-        <div style={{ marginTop: "12px" }}>
-          <Banner tone="critical" title="Sync failed" onDismiss={() => setShowBanner(false)}>
-            <p>{syncFetcher.data.error || "An unknown error occurred."}</p>
-          </Banner>
-        </div>
-      )}
+
+      {/* Toast animation keyframes */}
+      <style>{`
+        @keyframes toastFadeIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
